@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+import re
+
+
 
 from app.core.database import get_db
 from app.auth.auth_service import generate_otp, verify_otp
@@ -8,21 +11,36 @@ from app.core.security import create_access_token
 
 router = APIRouter()
 
-
+PHONE_REGEX = re.compile(r"^09\d{8}$")
 class RequestOTPBody(BaseModel):
     phone_number: str
 
-
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        if not PHONE_REGEX.match(v):
+            raise ValueError("Phone number must be in the format 09XXXXXXXX")
+        return v
+    
 class VerifyOTPBody(BaseModel):
     phone_number: str
     code: str
     channel_type: str = "web"
 
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        if not PHONE_REGEX.match(v):
+            raise ValueError("Phone number must be in the format 09XXXXXXXX")
+        return v
 
+
+# app/routes/auth.py
 @router.post("/auth/request-otp")
 def request_otp(body: RequestOTPBody, db: Session = Depends(get_db)):
     code = generate_otp(db, body.phone_number)
-    return {"message": "OTP generated", "demo_code": code}  # demo_code: remove in production
+    print(f"[DEV OTP] {body.phone_number} -> {code}")  # visible in your uvicorn terminal
+    return {"message": "OTP sent"}
 
 
 @router.post("/auth/verify-otp")
