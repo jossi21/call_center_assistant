@@ -109,7 +109,11 @@ export function useChat() {
         ...prev,
         messages: [
           ...prev.messages,
-          { role: "assistant", content: response.answer },
+          {
+            role: "assistant",
+            content: response.answer,
+            agent: response.agent,
+          },
         ],
       }));
     } catch {

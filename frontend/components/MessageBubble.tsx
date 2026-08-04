@@ -6,10 +6,16 @@ import { ChatMessage } from "@/types/chat";
 export default function MessageBubble({ message }: { message: ChatMessage }) {
   return (
     <div
-      className={`flex ${
-        message.role === "user" ? "justify-end" : "justify-start"
+      className={`flex flex-col ${
+        message.role === "user" ? "items-end" : "items-start"
       }`}
     >
+      {message.role === "assistant" && message.agent && (
+        <span className="text-[10px] uppercase tracking-wide text-zinc-400 mb-1 px-1">
+          {message.agent}
+        </span>
+      )}
+
       <div
         className={`
           max-w-[85%]
