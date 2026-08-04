@@ -2,7 +2,8 @@ from sqlalchemy.orm import Session
 
 from app.models.chat import ChatRequest, ChatResponse
 from app.models.db import Message
-from app.services.ai_service import ask_ai
+from app.services.agent_dispatch import handel_message
+
 
 MAX_HISTORY_MESSAGES = 10
 
@@ -29,7 +30,7 @@ def process_chat(request: ChatRequest, db: Session, user_id: str) -> ChatRespons
     history.reverse()  # chronological order for the LLM
 
     # Generate the reply, grounded in real conversation history
-    answer = ask_ai(history)
+    answer, agent_used = handel_message(request.message, history)
 
     # Save the assistant's reply
     assistant_message = Message(
@@ -41,4 +42,4 @@ def process_chat(request: ChatRequest, db: Session, user_id: str) -> ChatRespons
     db.add(assistant_message)
     db.commit()
 
-    return ChatResponse(answer=answer)
+    return ChatResponse(answer=answer, agent=agent_used)

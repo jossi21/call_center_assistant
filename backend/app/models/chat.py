@@ -8,3 +8,4 @@ class ChatRequest(BaseModel):
 # define chat response model used to validate and  formatted the response
 class ChatResponse(BaseModel):
     answer: str
+    agent: str
