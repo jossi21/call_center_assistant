@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Routes
 from app.routes import health, chat, auth
+# admin route
+from app.admin import routes as admin_routes
 
 # create the app 
 app = FastAPI(
@@ -22,6 +24,9 @@ app.add_middleware(CORSMiddleware,
 app.include_router(health.router)
 app.include_router(chat.router)
 app.include_router(auth.router)
+
+# register admin routes
+app.include_router(admin_routes.router)
 
 # home page endpoint
 @app.get("/")

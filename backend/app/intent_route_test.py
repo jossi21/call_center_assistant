@@ -1,4 +1,4 @@
-from app.services.intent_router import classify_intent
+from backend.app.agents.intent_router import classify_intent
 
 test_messages = [
     "How much does the premium package cost?",

@@ -21,6 +21,7 @@ class User(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     preferred_language = Column(String(10), default="en", nullable=False)
+    is_admin = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
     channel_identities = relationship("UserChannelIdentity", back_populates="user")
@@ -92,3 +93,16 @@ class AuditLog(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
     user = relationship("User", back_populates="audit_entries")
+
+
+    # Agents data base 
+class Agent(Base):
+    __tablename__ = "agents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(50), unique=True, nullable=False)  # slug, e.g. "sales"
+    display_name = Column(String(100), nullable=False)      # e.g. "Sales"
+    description = Column(Text, nullable=False)               # tells the router when to use this agent
+    system_prompt = Column(Text, nullable=False)             # the agent's actual persona/instructions
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
