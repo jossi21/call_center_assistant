@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Bot,
+  MessageSquare,
   Languages,
   Users,
   Users2,
@@ -18,6 +19,7 @@ import {
 
 const NAV_ITEMS = [
   { label: "Agents", icon: Bot, href: "/admin/agents" },
+  { label: "Chatbot", icon: MessageSquare, href: "/" },
   { label: "Languages", icon: Languages, href: "/admin/languages" },
   { label: "Admins", icon: Users, href: "/admin/admins" },
   { label: "Staff", icon: Users2, href: "/admin/staff" },

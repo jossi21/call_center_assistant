@@ -1,4 +1,3 @@
-// components/admin/agents/AgentsManager.tsx
 "use client";
 
 import { useEffect, useState } from "react";
