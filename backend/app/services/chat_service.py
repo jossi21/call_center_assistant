@@ -27,7 +27,7 @@ def process_chat(request: ChatRequest, db: Session, user_id: str) -> ChatRespons
     )
     history.reverse()
 
-    answer, agent_used = handle_message(request.message, history, db)  # <- add db here
+    answer, agent_used = handle_message(request.message, history, db, user_id)
 
     assistant_message = Message(
         user_id=user_id,

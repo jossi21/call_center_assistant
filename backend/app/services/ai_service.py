@@ -1,4 +1,5 @@
 from langchain_groq import ChatGroq
+# from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 from app.core.config import settings
@@ -9,6 +10,15 @@ llm = ChatGroq(
     temperature=0,
     api_key=settings.groq_api_key,
 )
+
+# router_llm = ChatOllama(
+#     model="qwen3:8b",
+#     temperature=0,
+#     keep_alive="30m",
+#     num_predict=512,  # adjust based on how long responses actually need to be
+# )
+
+
  
 SYSTEM_PROMPT = """
 You are a customer support AI assistant for a call center.

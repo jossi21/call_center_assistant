@@ -106,3 +106,39 @@ class Agent(Base):
     system_prompt = Column(Text, nullable=False)             # the agent's actual persona/instructions
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+# tools
+class Tool(Base):
+    __tablename__ = "tools"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100), unique=True, nullable=False)
+    description = Column(Text, nullable=False)
+    parameters_schema = Column(JSONB, nullable=False)
+    risk_tier = Column(String(20), nullable=False)  # safe, reversible, destructive
+    action_type = Column(String(50), nullable=False)  # write_user_memory, update_user_field, call_webhook
+    action_config = Column(JSONB, nullable=False)
+    agent_name = Column(String(50), nullable=True)  # which agent this tool belongs to; null = available to all
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+# pending action database
+class PendingAction(Base):
+    __tablename__ = "pending_actions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    tool_name = Column(String(100), nullable=False)
+    tool_args = Column(JSONB, nullable=False)
+    status = Column(String(30), default="awaiting_confirmation", nullable=False)  # widened from 20 to 30
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+# app/models/db.py
+class Language(Base):
+    __tablename__ = "languages"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code = Column(String(10), unique=True, nullable=False)  # 'en', 'am'
+    name = Column(String(50), nullable=False)  # 'English', 'Amharic'
+    is_active = Column(Boolean, default=True, nullable=False)
