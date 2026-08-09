@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.models.chat import ChatRequest, ChatResponse
 from app.models.db import Message
-from app.agents.agent_dispatch import handle_message
+from app.admin.agents.agent_dispatch import handle_message
 
 
 MAX_HISTORY_MESSAGES = 10

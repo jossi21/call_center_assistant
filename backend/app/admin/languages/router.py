@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.core.current_user import require_admin
 from app.models.db import Agent
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/languages", tags=["Languages"])
 
 class LanguageCreate(BaseModel):
     code: str
@@ -19,12 +19,12 @@ class LanguageUpdate(BaseModel):
     is_active: bool | None = None
 
 
-@router.get("/languages")
+@router.get("/get-languages")
 def list_languages(db: Session = Depends(get_db), _: str = Depends(require_admin)):
     return db.query(Language).all()
 
 
-@router.post("/languages")
+@router.post("/create-language")
 def create_language(body: LanguageCreate, db: Session = Depends(get_db), _: str = Depends(require_admin)):
     existing = db.query(Language).filter(Language.code == body.code).first()
     if existing:
@@ -37,7 +37,7 @@ def create_language(body: LanguageCreate, db: Session = Depends(get_db), _: str 
     return language
 
 
-@router.patch("/languages/{language_id}")
+@router.patch("/update-language/{language_id}")
 def update_language(language_id: str, body: LanguageUpdate, db: Session = Depends(get_db), _: str = Depends(require_admin)):
     language = db.query(Language).filter(Language.id == language_id).first()
     if not language:
@@ -51,7 +51,7 @@ def update_language(language_id: str, body: LanguageUpdate, db: Session = Depend
     return language
 
 
-@router.delete("/languages/{language_id}")
+@router.delete("/delete-language/{language_id}")
 def delete_language(language_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)):
     language = db.query(Language).filter(Language.id == language_id).first()
     if not language:

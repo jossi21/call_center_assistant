@@ -134,7 +134,7 @@ class PendingAction(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
-# app/models/db.py
+# Language database
 class Language(Base):
     __tablename__ = "languages"
 
@@ -142,3 +142,29 @@ class Language(Base):
     code = Column(String(10), unique=True, nullable=False)  # 'en', 'am'
     name = Column(String(50), nullable=False)  # 'English', 'Amharic'
     is_active = Column(Boolean, default=True, nullable=False)
+
+# staff database
+class StaffProfile(Base):
+    __tablename__ = "staff_profiles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False)
+    name = Column(String(150), nullable=False)
+    email = Column(String(255), nullable=False)
+    specialty = Column(String(50), nullable=False)
+    is_available = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+# Agent database 
+class Handoff(Base):
+    __tablename__ = "handoffs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    reason = Column(Text, nullable=False)
+    originating_agent = Column(String(50), nullable=True)
+    status = Column(String(30), default="waiting_confirmation", nullable=False)
+    assigned_staff_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    assigned_at = Column(DateTime(timezone=True), nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)

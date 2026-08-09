@@ -6,7 +6,7 @@ from app.core.database import get_db
 from app.core.current_user import require_admin
 from app.models.db import Agent
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/agents", tags=["Agents"])
 
 
 class AgentCreate(BaseModel):
@@ -23,12 +23,12 @@ class AgentUpdate(BaseModel):
     is_active: bool | None = None
 
 
-@router.get("/agents")
+@router.get("/get-agents")
 def list_agents(db: Session = Depends(get_db), _: str = Depends(require_admin)):
     return db.query(Agent).all()
 
 
-@router.post("/agents")
+@router.post("/create-agent")
 def create_agent(body: AgentCreate, db: Session = Depends(get_db), _: str = Depends(require_admin)):
     existing = db.query(Agent).filter(Agent.name == body.name).first()
     if existing:
@@ -41,7 +41,7 @@ def create_agent(body: AgentCreate, db: Session = Depends(get_db), _: str = Depe
     return agent
 
 
-@router.get("/agents/{agent_id}")
+@router.get("/get-agent/{agent_id}")
 def get_agent(agent_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)):
     agent = db.query(Agent).filter(Agent.id == agent_id).first()
     if not agent:
@@ -49,7 +49,7 @@ def get_agent(agent_id: str, db: Session = Depends(get_db), _: str = Depends(req
     return agent
 
 
-@router.patch("/agents/{agent_id}")
+@router.patch("/update-agent/{agent_id}")
 def update_agent(agent_id: str, body: AgentUpdate, db: Session = Depends(get_db), _: str = Depends(require_admin)):
     agent = db.query(Agent).filter(Agent.id == agent_id).first()
     if not agent:
@@ -63,7 +63,7 @@ def update_agent(agent_id: str, body: AgentUpdate, db: Session = Depends(get_db)
     return agent
 
 
-@router.delete("/agents/{agent_id}")
+@router.delete("/delete-agent/{agent_id}")
 def delete_agent(agent_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)):
     agent = db.query(Agent).filter(Agent.id == agent_id).first()
     if not agent:
