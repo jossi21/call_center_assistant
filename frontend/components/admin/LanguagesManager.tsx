@@ -8,7 +8,7 @@ import {
   updateLanguage,
   createLanguage,
   deleteLanguage,
-} from "@/services/adminLanguageApi";
+} from "@/services/languagesApi";
 import { Table, Column } from "@/components/ui/Table";
 import { ActionMenu, ActionItem } from "@/components/ui/ActionMenu";
 

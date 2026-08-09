@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getAgent, updateAgent, Agent as AgentType } from "@/services/adminApi";
+import {
+  getAgent,
+  updateAgent,
+  Agent as AgentType,
+} from "@/services/agentsApi";
 import { Button } from "@/components/ui/button";
 
 export default function AgentDetailPage() {

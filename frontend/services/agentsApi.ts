@@ -18,7 +18,7 @@ export interface Agent {
 }
 
 export async function listAgents(): Promise<Agent[]> {
-  const res = await fetch(`${API_URL}/admin/agents`, {
+  const res = await fetch(`${API_URL}/admin/agents/get-agents`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to load agents");
@@ -31,7 +31,7 @@ export async function createAgent(data: {
   description: string;
   system_prompt: string;
 }): Promise<Agent> {
-  const res = await fetch(`${API_URL}/admin/agents`, {
+  const res = await fetch(`${API_URL}/admin/agents/create-agent`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify(data),
@@ -46,7 +46,7 @@ export async function updateAgent(
     Pick<Agent, "display_name" | "description" | "system_prompt" | "is_active">
   >,
 ): Promise<Agent> {
-  const res = await fetch(`${API_URL}/admin/agents/${id}`, {
+  const res = await fetch(`${API_URL}/admin/agents/update-agent/${id}`, {
     method: "PATCH",
     headers: authHeaders(),
     body: JSON.stringify(data),
@@ -56,7 +56,7 @@ export async function updateAgent(
 }
 
 export async function deleteAgent(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/admin/agents/${id}`, {
+  const res = await fetch(`${API_URL}/admin/agents/delete-agent/${id}`, {
     method: "DELETE",
     headers: authHeaders(),
   });
@@ -64,7 +64,7 @@ export async function deleteAgent(id: string): Promise<void> {
 }
 
 export async function getAgent(id: string): Promise<Agent> {
-  const res = await fetch(`${API_URL}/admin/agents/${id}`, {
+  const res = await fetch(`${API_URL}/admin/agents/get-agents/${id}`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to load agent");

@@ -15,16 +15,18 @@ import {
   User,
   LogOut,
   Sparkles,
+  Toolbox,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Agents", icon: Bot, href: "/admin/agents" },
-  { label: "Chatbot", icon: MessageSquare, href: "/" },
   { label: "Languages", icon: Languages, href: "/admin/languages" },
+  { label: "Tools", icon: Toolbox, href: "/admin/tools" },
   { label: "Admins", icon: Users, href: "/admin/admins" },
-  { label: "Staff", icon: Users2, href: "/admin/staff" },
+  { label: "Staffs", icon: Users2, href: "/admin/staffs" },
   { label: "Memory", icon: Database, href: "/admin/memory" },
   { label: "Analytics", icon: BarChart3, href: "/admin/analytics" },
+  { label: "Chatbot", icon: MessageSquare, href: "/" },
   { label: "Settings", icon: Settings, href: "/admin/settings" },
   { label: "Profile", icon: User, href: "/admin/profile" },
 ];

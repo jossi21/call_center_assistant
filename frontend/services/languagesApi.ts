@@ -17,7 +17,7 @@ export interface Language {
 }
 
 export async function listLanguages(): Promise<Language[]> {
-  const res = await fetch(`${API_URL}/admin/languages`, {
+  const res = await fetch(`${API_URL}/admin/languages/get-languages`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to load languages");
@@ -28,7 +28,7 @@ export async function createLanguage(data: {
   code: string;
   name: string;
 }): Promise<Language> {
-  const res = await fetch(`${API_URL}/admin/languages`, {
+  const res = await fetch(`${API_URL}/admin/languages/create-language`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify(data),
@@ -41,7 +41,7 @@ export async function updateLanguage(
   id: string,
   data: { is_active?: boolean },
 ): Promise<Language> {
-  const res = await fetch(`${API_URL}/admin/languages/${id}`, {
+  const res = await fetch(`${API_URL}/admin/languages/update-language/${id}`, {
     method: "PATCH",
     headers: authHeaders(),
     body: JSON.stringify(data),
@@ -51,7 +51,7 @@ export async function updateLanguage(
 }
 
 export async function deleteLanguage(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/admin/languages/${id}`, {
+  const res = await fetch(`${API_URL}/admin/languages/delete-language/${id}`, {
     method: "DELETE",
     headers: authHeaders(),
   });

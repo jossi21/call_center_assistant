@@ -17,7 +17,7 @@ import {
   updateAgent,
   createAgent,
   deleteAgent,
-} from "@/services/adminApi";
+} from "@/services/agentsApi";
 import { Table, Column } from "@/components/ui/Table";
 import { Button } from "@/components/ui/button";
 import {
