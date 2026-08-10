@@ -1,7 +1,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 function authHeaders() {
-  const token = localStorage.getItem("admin_access_token");
+  const token = localStorage.getItem("app_access_token");
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
@@ -67,4 +67,21 @@ export async function deleteTool(id: string): Promise<void> {
   if (!res.ok) {
     throw new Error(text);
   }
+}
+
+export async function getTool(id: string): Promise<Tool> {
+  const res = await fetch(`${API_URL}/admin/tools/get-tool/${id}`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to load tool");
+  return res.json();
+}
+
+export async function toggleToolActive(id: string): Promise<Tool> {
+  const res = await fetch(`${API_URL}/admin/tools/toggle-active/${id}`, {
+    method: "PATCH",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to toggle tool status");
+  return res.json();
 }

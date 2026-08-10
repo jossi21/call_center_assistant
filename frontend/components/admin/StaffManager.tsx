@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil, Trash2, Power, Plus, MoreVertical } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Pencil, Trash2, Power, Plus, MoreVertical, Eye } from "lucide-react";
 import {
   Staff,
   listStaff,
@@ -24,6 +25,7 @@ import { StaffFormModal } from "./staff/staffFormModal";
 import { DeleteStaffModal } from "./staff/DeleteStaffModal";
 
 export default function StaffManager() {
+  const router = useRouter();
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +119,19 @@ export default function StaffManager() {
       ),
     },
     {
+      key: "case_status",
+      header: "Case Status",
+      cell: (member: Staff) =>
+        member.active_case_count > 0 ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-50 text-amber-700 ring-1 ring-amber-600/20">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            On Case ({member.active_case_count})
+          </span>
+        ) : (
+          <span className="text-xs text-zinc-400">Free</span>
+        ),
+    },
+    {
       key: "actions",
       header: "Actions",
       headerClassName: "text-right",
@@ -137,6 +152,14 @@ export default function StaffManager() {
 
             <DropdownMenuContent align="end" className="w-44 rounded-xl">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="cursor-pointer gap-2 rounded-lg text-xs font-medium"
+                onClick={() => router.push(`/admin/staffs/${member.id}`)}
+              >
+                <Eye size={14} className="text-muted-foreground" />
+                View Details
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
 
               <DropdownMenuItem

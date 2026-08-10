@@ -19,6 +19,7 @@ interface TableProps<T> {
   data: T[];
   keyExtractor: (item: T) => string;
   emptyMessage?: string;
+  className?: string;
 }
 
 export function Table<T>({
@@ -30,13 +31,16 @@ export function Table<T>({
   data,
   keyExtractor,
   emptyMessage = "No items found",
+  className,
 }: TableProps<T>) {
   if (loading) {
     return (
-      <Card className="overflow-hidden rounded-[28px] border-border bg-card shadow-sm">
+      <Card
+        className={`overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950 shadow-lg ${className || ""}`}
+      >
         <CardContent className="p-6">
           <div className="flex items-center justify-center py-20">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
           </div>
         </CardContent>
       </Card>
@@ -44,19 +48,17 @@ export function Table<T>({
   }
 
   return (
-    <Card className="overflow-hidden rounded-[28px] border-border bg-card shadow-sm">
+    <Card className="overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950 shadow-lg">
       {(title || description || headerAction) && (
-        <CardHeader className="flex flex-row items-center justify-between border-b border-border/50 p-6">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-slate-800 p-6">
           <div>
             {title && (
-              <CardTitle className="text-lg font-bold text-foreground">
+              <CardTitle className="text-lg font-bold text-white">
                 {title}
               </CardTitle>
             )}
             {description && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                {description}
-              </p>
+              <p className="mt-1 text-sm text-slate-400">{description}</p>
             )}
           </div>
           {headerAction && <div>{headerAction}</div>}
@@ -67,11 +69,11 @@ export function Table<T>({
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-border/50 bg-muted/30">
+              <tr className="border-b border-slate-800 bg-slate-900/60">
                 {columns.map((column) => (
                   <th
                     key={column.key}
-                    className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground ${column.headerClassName || ""}`}
+                    className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-400 ${column.headerClassName || ""}`}
                   >
                     {column.header}
                   </th>
@@ -83,7 +85,7 @@ export function Table<T>({
                 <tr>
                   <td
                     colSpan={columns.length}
-                    className="py-16 text-center text-sm text-muted-foreground"
+                    className="py-16 text-center text-sm text-slate-500 bg-slate-950"
                   >
                     {emptyMessage}
                   </td>
@@ -92,10 +94,10 @@ export function Table<T>({
                 data.map((item) => (
                   <tr
                     key={keyExtractor(item)}
-                    className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors"
+                    className="border-b border-slate-800/70 last:border-0 bg-slate-950 hover:bg-slate-900/50 transition-colors"
                   >
                     {columns.map((column) => (
-                      <td key={column.key} className="px-6 py-4">
+                      <td key={column.key} className="px-6 py-4 text-slate-200">
                         {column.cell(item)}
                       </td>
                     ))}

@@ -2,13 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import AdminSidebar from "@/components/admin/AdminSidebar";
+import { StaffDashboard } from "@/components/staff/StaffDashboard";
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function StaffPage() {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -26,10 +22,5 @@ export default function AdminLayout({
 
   if (!checked || !loggedIn) return null;
 
-  return (
-    <div className="flex min-h-screen bg-gray-500 text-zinc-900">
-      <AdminSidebar />
-      <main className="flex-1 overflow-y-auto">{children}</main>
-    </div>
-  );
+  return <StaffDashboard />;
 }

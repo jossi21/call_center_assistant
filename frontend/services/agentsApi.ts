@@ -1,7 +1,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 function authHeaders() {
-  const token = localStorage.getItem("admin_access_token");
+  const token = localStorage.getItem("app_access_token");
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
@@ -64,7 +64,7 @@ export async function deleteAgent(id: string): Promise<void> {
 }
 
 export async function getAgent(id: string): Promise<Agent> {
-  const res = await fetch(`${API_URL}/admin/agents/get-agents/${id}`, {
+  const res = await fetch(`${API_URL}/admin/agents/get-agent/${id}`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to load agent");

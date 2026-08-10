@@ -16,6 +16,7 @@ import {
   LogOut,
   Sparkles,
   Toolbox,
+  UserCircle,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { label: "Tools", icon: Toolbox, href: "/admin/tools" },
   { label: "Admins", icon: Users, href: "/admin/admins" },
   { label: "Staffs", icon: Users2, href: "/admin/staffs" },
+  { label: "Users", icon: UserCircle, href: "/admin/users" },
   { label: "Memory", icon: Database, href: "/admin/memory" },
   { label: "Analytics", icon: BarChart3, href: "/admin/analytics" },
   { label: "Chatbot", icon: MessageSquare, href: "/" },
@@ -36,7 +38,7 @@ export default function AdminSidebar() {
   const router = useRouter();
 
   function handleLogout() {
-    localStorage.removeItem("admin_access_token");
+    localStorage.removeItem("app_access_token");
     router.push("/admin");
     router.refresh();
   }
