@@ -41,8 +41,8 @@ def list_my_cases(user_id: str = Depends(get_current_user_id), db: Session = Dep
     _require_staff(user_id, db)
     cases = (
         db.query(Handoff)
-        .filter(Handoff.assigned_staff_id == user_id, Handoff.status == "assigned")
-        .order_by(Handoff.assigned_at.desc())
+        .filter(Handoff.assigned_staff_id == user_id)
+        .order_by(Handoff.created_at.desc())
         .all()
     )
 
@@ -60,6 +60,7 @@ def list_my_cases(user_id: str = Depends(get_current_user_id), db: Session = Dep
         result.append({
             "id": str(c.id),
             "reason": c.reason,
+            "status": c.status,
             "user_contact": identity.channel_specific_id if identity else "unknown",
             "assigned_at": c.assigned_at,
             "history": [{"role": m.role, "content": m.content} for m in history],

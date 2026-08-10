@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.current_user import require_admin
-from app.models.db import StaffProfile, User, UserChannelIdentity
+from app.models.db import StaffProfile, User, UserChannelIdentity, Handoff, Message
 
 router = APIRouter(prefix="/staffs", tags=["Staffs"])
 
@@ -34,6 +34,7 @@ def list_staff(db: Session = Depends(get_db), _: str = Depends(require_admin)):
     result = []
     for p in profiles:
         identity = db.query(UserChannelIdentity).filter(UserChannelIdentity.user_id == p.user_id).first()
+        active_cases = db.query(Handoff).filter(Handoff.assigned_staff_id == p.user_id, Handoff.status == "assigned").count()
         result.append({
             "id": str(p.id),
             "user_id": str(p.user_id),
@@ -42,9 +43,58 @@ def list_staff(db: Session = Depends(get_db), _: str = Depends(require_admin)):
             "email": p.email,
             "specialty": p.specialty,
             "is_available": p.is_available,
-})
+            "active_case_count": active_cases,
+        })
     return result
 
+
+@router.get("/get-staff/{staff_id}")
+def get_staff_detail(staff_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)):
+    profile = db.query(StaffProfile).filter(StaffProfile.id == staff_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+
+    identity = db.query(UserChannelIdentity).filter(UserChannelIdentity.user_id == profile.user_id).first()
+
+    handoffs = (
+        db.query(Handoff)
+        .filter(Handoff.assigned_staff_id == profile.user_id)
+        .order_by(Handoff.created_at.desc())
+        .all()
+    )
+
+    cases = []
+    for h in handoffs:
+        customer_identity = db.query(UserChannelIdentity).filter(UserChannelIdentity.user_id == h.user_id).first()
+        history = (
+            db.query(Message)
+            .filter(Message.user_id == h.user_id)
+            .order_by(Message.created_at.desc())
+            .limit(20)
+            .all()
+        )
+        history.reverse()
+        cases.append({
+            "id": str(h.id),
+            "reason": h.reason,
+            "status": h.status,
+            "customer_contact": customer_identity.channel_specific_id if customer_identity else "unknown",
+            "created_at": h.created_at,
+            "assigned_at": h.assigned_at,
+            "resolved_at": h.resolved_at,
+            "history": [{"role": m.role, "content": m.content} for m in history],
+        })
+
+    return {
+        "id": str(profile.id),
+        "user_id": str(profile.user_id),
+        "name": profile.name,
+        "email": profile.email,
+        "specialty": profile.specialty,
+        "phone_number": identity.channel_specific_id if identity else None,
+        "is_available": profile.is_available,
+        "cases": cases,
+    }
 
 @router.post("/create-staff")
 def create_staff(body: StaffCreate, db: Session = Depends(get_db), _: str = Depends(require_admin)):

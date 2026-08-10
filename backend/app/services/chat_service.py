@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.chat import ChatRequest, ChatResponse
-from app.models.db import Message
+from app.models.db import Message, User
 from app.admin.agents.agent_dispatch import handle_message
 
 
@@ -9,6 +9,9 @@ MAX_HISTORY_MESSAGES = 10
 
 
 def process_chat(request: ChatRequest, db: Session, user_id: str) -> ChatResponse:
+    user = db.query(User).filter(User.id == user_id).first()
+    if user and not user.is_active:
+        return ChatResponse(answer="This account has been suspended. Please contact support.", agent="System")
     user_message = Message(
         user_id=user_id,
         channel_type="web",

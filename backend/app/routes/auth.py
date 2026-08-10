@@ -1,7 +1,8 @@
+import re
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, field_validator
-import re
+from app.models.db import StaffProfile
 
 
 
@@ -46,9 +47,16 @@ def request_otp(body: RequestOTPBody, db: Session = Depends(get_db)):
 @router.post("/auth/verify-otp")
 def verify_otp_route(body: VerifyOTPBody, db: Session = Depends(get_db)):
     user = verify_otp(db, body.phone_number, body.code, body.channel_type)
-
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or expired code")
 
     token = create_access_token(str(user.id))
-    return {"access_token": token, "preferred_language": user.preferred_language}
+
+    staff_profile = db.query(StaffProfile).filter(StaffProfile.user_id == user.id).first()
+
+    return {
+        "access_token": token,
+        "preferred_language": user.preferred_language,
+        "is_admin": user.is_admin,
+        "is_staff": staff_profile is not None,
+    }

@@ -1,11 +1,10 @@
-from app.models.db import Tool
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.current_user import require_admin
-from app.models.db import Agent
+from app.models.db import Agent, Tool
 
 router = APIRouter(prefix="/tools", tags=["Tools"])
 
@@ -32,6 +31,15 @@ class ToolUpdate(BaseModel):
 @router.get("/get-tools")
 def list_tools(db: Session = Depends(get_db), _: str = Depends(require_admin)):
     return db.query(Tool).all()
+
+
+# ===== ADD THIS ENDPOINT =====
+@router.get("/get-tool/{tool_id}")
+def get_tool(tool_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)):
+    tool = db.query(Tool).filter(Tool.id == tool_id).first()
+    if not tool:
+        raise HTTPException(status_code=404, detail="Tool not found")
+    return tool
 
 
 @router.post("/create-tool")
@@ -62,6 +70,19 @@ def update_tool(tool_id: str, body: ToolUpdate, db: Session = Depends(get_db), _
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(tool, field, value)
 
+    db.commit()
+    db.refresh(tool)
+    return tool
+
+
+# ===== ADD THIS ENDPOINT =====
+@router.patch("/toggle-active/{tool_id}")
+def toggle_tool_active(tool_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)):
+    tool = db.query(Tool).filter(Tool.id == tool_id).first()
+    if not tool:
+        raise HTTPException(status_code=404, detail="Tool not found")
+    
+    tool.is_active = not tool.is_active
     db.commit()
     db.refresh(tool)
     return tool

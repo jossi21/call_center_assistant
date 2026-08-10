@@ -5,7 +5,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from app.core.config import settings
 
 # admin folder imports
-from app.models.db import Message, Agent, Tool, PendingAction, User, Language, Handoff
+from app.models.db import Message, Agent, Tool, PendingAction, User, Language, Handoff, AuditLog
 from app.admin.agents.intent_router import classify_intent
 from app.admin.agents.handoff import (
     wants_human_handoff,
@@ -64,7 +64,7 @@ def _tool_to_llm_schema(tool: Tool) -> dict:
 def handle_message(latest_message: str, history: list[Message], db: Session, user_id: str) -> tuple[str, str]:
     language_instruction = _get_language_instruction(user_id, db)
 
-    # NEW — check for an active handoff confirmation
+    # 1. Handoff confirmation in progress
     pending_handoff = (
         db.query(Handoff)
         .filter(Handoff.user_id == user_id, Handoff.status == "waiting_confirmation")
@@ -74,38 +74,37 @@ def handle_message(latest_message: str, history: list[Message], db: Session, use
     if pending_handoff:
         return _handle_handoff_confirmation_reply(latest_message, pending_handoff, history, db, language_instruction)
 
-    # NEW — check for an already-assigned/waiting handoff, conversation stays paused
-    active_handoff = (
-        db.query(Handoff)
-        .filter(Handoff.user_id == user_id, Handoff.status.in_(["assigned", "waiting"]))
-        .order_by(Handoff.created_at.desc())
-        .first()
-    )
-    if active_handoff:
-        text = _generate_in_language(
-            "You're currently connected to our support queue and a team member will respond here shortly. Thanks for your patience.",
-            language_instruction,
-        )
-        return text, "System"
-
+    # 2. Tool confirmation in progress — MOVED HERE, now runs before active_handoff
     pending = (
         db.query(PendingAction)
         .filter(PendingAction.user_id == user_id, PendingAction.status == "awaiting_confirmation")
         .order_by(PendingAction.created_at.desc())
         .first()
     )
-
     if pending and pending.expires_at > datetime.now(timezone.utc):
         return _handle_confirmation_reply(latest_message, pending, db, language_instruction)
 
-    # NEW LINE — find the most recent assistant message in history, if any
+    # 3. Active handoff — now runs AFTER the tool-confirmation check
+    active_handoff = (
+        db.query(Handoff)
+        .filter(Handoff.user_id == user_id, Handoff.status.in_(["assigned", "waiting"]))
+        .order_by(Handoff.created_at.desc())
+        .first()
+    )
+    if active_handoff and _is_case_status_question(latest_message, active_handoff.reason):
+        text = _generate_in_language(
+            "You're currently connected to our support queue and a team member will respond here shortly. Thanks for your patience.",
+            language_instruction,
+        )
+        return text, "System"
+
+    # 4. Everything below this line is unchanged — last_assistant_msg, wants_human_handoff,
+    # classify_intent, agent dispatch, tool binding, etc.
     last_assistant_msg = next((m.content for m in reversed(history) if m.role == "assistant"), None)
 
-    # NEW — check if this message is asking for a human, before normal routing
     if wants_human_handoff(latest_message, last_assistant_msg):
         return _start_handoff(latest_message, history, db, user_id, language_instruction)
 
-    # UPDATED LINE — pass it into classify_intent
     classification = classify_intent(latest_message, db, last_assistant_msg)
 
     primary_agent_name = classification.agents[0]
@@ -185,6 +184,7 @@ def _handle_tool_call(response, tools: list[Tool], user_id: str, db: Session, ag
 
     if tool.risk_tier == "safe":
         exec_result = execute_tool(tool.action_type, tool.action_config, tool_args, user_id, db)
+        _log_action(user_id, tool.name, tool_args, "success" if exec_result.get("success") else "failed", db)
         fresh_language_instruction = _get_language_instruction(user_id, db)
 
         if not exec_result.get("success"):
@@ -208,6 +208,7 @@ Summarize the relevant parts of this for the user in a natural, helpful way, in 
     )
     db.add(pending)
     db.commit()
+    _log_action(user_id, tool.name, tool_args, "pending_confirmation", db)
 
     text = _generate_in_language(f"Confirm: {tool.description} — details: {tool_args}. Reply yes or no.", language_instruction)
     return text, agent_display_name
@@ -233,9 +234,9 @@ Reply with exactly one word:
     if "confirm" in decision:
         tool = db.query(Tool).filter(Tool.name == pending.tool_name).first()
         exec_result = execute_tool(tool.action_type, tool.action_config, pending.tool_args, str(pending.user_id), db)
-
         pending.status = "confirmed"
         db.commit()
+        _log_action(str(pending.user_id), tool.name, pending.tool_args, "success" if exec_result.get("success") else "failed", db)
 
         fresh_language_instruction = _get_language_instruction(str(pending.user_id), db)
 
@@ -254,6 +255,7 @@ Reply with exactly one word:
     else:
         pending.status = "cancelled"
         db.commit()
+        _log_action(str(pending.user_id), pending.tool_name, pending.tool_args, "declined", db)
         return handle_message(latest_message, [], db, str(pending.user_id))
 
 
@@ -312,3 +314,26 @@ Reply with exactly one word: confirm, decline, or unrelated.
     else:
         cancel_handoff(handoff, db)
         return handle_message(latest_message, [], db, str(handoff.user_id))
+
+
+# track every tool execution
+def _log_action(user_id: str, action: str, payload: dict, result: str, db: Session):
+    entry = AuditLog(
+        user_id=user_id,
+        action=action,
+        payload=payload,
+        result=result,
+    )
+    db.add(entry)
+    db.commit()
+
+def _is_case_status_question(latest_message: str, reason: str) -> bool:
+    check_prompt = f"""The user has an open support case with this reason: "{reason}"
+
+Is the user's current message SPECIFICALLY asking about that case's status, progress, or continuing that exact issue?
+
+Message: "{latest_message}"
+Reply with exactly one word: yes or no.
+"""
+    result = llm.invoke([SystemMessage(content=check_prompt)])
+    return result.content.strip().lower().startswith("yes")
