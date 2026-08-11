@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil, Trash2, Power, Plus, X } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Power,
+  Plus,
+  X,
+  MoreVertical,
+  Eye,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   Tool,
   listTools,
@@ -20,13 +29,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Eye } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 const RISK_COLORS: Record<string, string> = {
-  safe: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20",
-  reversible: "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20",
-  destructive: "bg-red-50 text-red-700 ring-1 ring-red-600/20",
+  safe: "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20",
+  reversible: "bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20",
+  destructive: "bg-red-500/10 text-red-400 ring-1 ring-red-500/20",
 };
 
 export default function ToolsManager() {
@@ -63,9 +70,7 @@ export default function ToolsManager() {
   }
 
   async function handleDelete(tool: Tool): Promise<void> {
-    console.log("Deleting tool:", tool);
     await deleteTool(tool.id);
-    console.log("Delete request finished");
     setDeletingTool(null);
     load();
   }
@@ -77,14 +82,14 @@ export default function ToolsManager() {
       cell: (tool: Tool) => (
         <div>
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-primary text-sm font-bold uppercase">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400 text-sm font-bold uppercase">
               {tool.name.charAt(0)}
             </div>
             <div>
-              <div className="text-sm font-semibold text-zinc-900">
+              <div className="text-sm font-semibold text-white">
                 {tool.name}
               </div>
-              <div className="text-xs text-muted truncate max-w-xs">
+              <div className="text-xs text-slate-400 truncate max-w-xs">
                 {tool.description}
               </div>
             </div>
@@ -96,7 +101,7 @@ export default function ToolsManager() {
       key: "agent",
       header: "Agent",
       cell: (tool: Tool) => (
-        <span className="text-xs text-zinc-600">
+        <span className="text-xs text-slate-400">
           {tool.agent_name || "All agents"}
         </span>
       ),
@@ -121,14 +126,14 @@ export default function ToolsManager() {
             inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
             ${
               tool.is_active
-                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20"
-                : "bg-zinc-100 text-zinc-600 ring-1 ring-zinc-600/10"
+                ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20"
+                : "bg-slate-800 text-slate-400 ring-1 ring-slate-700"
             }
           `}
         >
           <span
             className={`h-1.5 w-1.5 rounded-full ${
-              tool.is_active ? "bg-emerald-500" : "bg-zinc-400"
+              tool.is_active ? "bg-emerald-500" : "bg-slate-500"
             }`}
           />
           {tool.is_active ? "Active" : "Inactive"}
@@ -146,46 +151,51 @@ export default function ToolsManager() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-full hover:bg-muted/50"
+                className="h-8 w-8 rounded-full hover:bg-slate-800 text-slate-400"
               >
-                <MoreVertical size={16} className="text-muted-foreground" />
+                <MoreVertical size={16} />
               </Button>
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent align="end" className="w-44 rounded-xl">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
+            <DropdownMenuContent
+              align="end"
+              className="w-44 rounded-xl bg-slate-900 border-slate-800"
+            >
+              <DropdownMenuLabel className="text-slate-400">
+                Actions
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-slate-800" />
 
               <DropdownMenuItem
-                className="cursor-pointer gap-2 rounded-lg text-xs font-medium"
+                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-slate-200 focus:bg-slate-800 focus:text-white"
                 onClick={() => router.push(`/admin/tools/${tool.id}`)}
               >
-                <Eye size={14} className="text-muted-foreground" />
+                <Eye size={14} />
                 View
               </DropdownMenuItem>
 
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="bg-slate-800" />
 
               <DropdownMenuItem
-                className="cursor-pointer gap-2 rounded-lg text-xs font-medium"
+                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-slate-200 focus:bg-slate-800 focus:text-white"
                 onClick={() => setEditingTool(tool)}
               >
-                <Pencil size={14} className="text-muted-foreground" />
+                <Pencil size={14} />
                 Edit
               </DropdownMenuItem>
 
               <DropdownMenuItem
-                className="cursor-pointer gap-2 rounded-lg text-xs font-medium"
+                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-slate-200 focus:bg-slate-800 focus:text-white"
                 onClick={() => handleToggleActive(tool)}
               >
-                <Power size={14} className="text-muted-foreground" />
+                <Power size={14} />
                 {tool.is_active ? "Suspend" : "Activate"}
               </DropdownMenuItem>
 
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="bg-slate-800" />
 
               <DropdownMenuItem
-                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-destructive focus:bg-destructive/10 focus:text-destructive"
+                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-red-400 focus:bg-red-950 focus:text-red-300"
                 onClick={() => setDeletingTool(tool)}
               >
                 <Trash2 size={14} />
@@ -199,7 +209,11 @@ export default function ToolsManager() {
   ];
 
   if (error)
-    return <div className="p-8 text-red-500 text-sm bg-white m-6">{error}</div>;
+    return (
+      <div className="p-8 text-red-400 text-sm bg-slate-950 m-6 rounded-xl border border-slate-800">
+        {error}
+      </div>
+    );
 
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-3 p-3 sm:p-4 md:p-5">
@@ -211,9 +225,9 @@ export default function ToolsManager() {
         headerAction={
           <Button
             onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-2 bg-green-400 text-white rounded-xl px-4 py-2 text-sm font-medium hover:bg-green-500 transition-colors shadow-sm shadow-indigo-500/20 cursor-pointer"
+            className="h-8 gap-2 rounded-xl bg-emerald-500 px-4 text-xs font-bold text-white hover:bg-emerald-600 cursor-pointer"
           >
-            <Plus size={18} />
+            <Plus size={14} />
             New Tool
           </Button>
         }
@@ -250,30 +264,29 @@ export default function ToolsManager() {
       )}
 
       {deletingTool && (
-        <Modal
-          onClose={() => setDeletingTool(null)}
-          title={`Delete ${deletingTool.name}`}
-        >
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-foreground">
-              Are you sure you want to permanently delete &rdquo;
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-sm w-full">
+            <h2 className="text-white font-semibold mb-2">Delete this tool?</h2>
+            <p className="text-slate-400 text-sm mb-4">
+              Are you sure you want to permanently delete &ldquo;
               {deletingTool.name}&rdquo;? This action cannot be undone.
             </p>
-
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDeletingTool(null)}>
+              <button
+                onClick={() => setDeletingTool(null)}
+                className="text-sm text-slate-400 px-4 py-2 hover:text-white transition"
+              >
                 Cancel
-              </Button>
-
-              <Button
-                className="bg-destructive text-destructive-foreground"
-                onClick={async () => await handleDelete(deletingTool)}
+              </button>
+              <button
+                onClick={() => handleDelete(deletingTool)}
+                className="bg-red-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-red-700 transition"
               >
                 Delete
-              </Button>
+              </button>
             </div>
           </div>
-        </Modal>
+        </div>
       )}
     </div>
   );
@@ -474,38 +487,38 @@ function ToolFormModal({
   return (
     <Modal onClose={onClose} title={title} maxWidth="max-w-2xl">
       <div className="flex flex-col gap-4">
-        {error && <div className="text-sm text-red-600">{error}</div>}
+        {error && <div className="text-sm text-red-400">{error}</div>}
         <div>
-          <label className="block text-xs font-medium text-zinc-500 mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Name (slug)
           </label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={!!initial}
-            className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 disabled:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-zinc-500 mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Description (tells the AI when to use this)
           </label>
           <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-zinc-500 mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Agent (which agent uses this tool)
           </label>
           <select
             value={agentName}
             onChange={(e) => setAgentName(e.target.value)}
-            className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <option value="">All agents</option>
             {agents.map((a) => (
@@ -516,7 +529,7 @@ function ToolFormModal({
           </select>
           <button
             onClick={() => setShowCreateAgent(true)}
-            className="text-xs text-indigo-500 hover:underline mt-1"
+            className="text-xs text-emerald-400 hover:underline mt-1"
           >
             Can&apos;t find your agent? + Create one
           </button>
@@ -530,13 +543,13 @@ function ToolFormModal({
         )}
 
         <div>
-          <label className="block text-xs font-medium text-zinc-500 mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Risk Tier
           </label>
           <select
             value={riskTier}
             onChange={(e) => setRiskTier(e.target.value as Tool["risk_tier"])}
-            className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <option value="safe">
               Safe — runs immediately, no confirmation
@@ -551,20 +564,20 @@ function ToolFormModal({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-zinc-500 mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             What information does this tool need?
           </label>
           <div className="flex flex-col gap-2">
             {params.map((param, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 rounded-lg p-2"
+                className="flex items-center gap-2 bg-slate-900/50 border border-slate-800 rounded-lg p-2"
               >
                 <input
                   placeholder="Name"
                   value={param.name}
                   onChange={(e) => updateParam(i, { name: e.target.value })}
-                  className="flex-1 border border-zinc-200 rounded px-2 py-1.5 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="flex-1 bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
                 <select
                   value={param.type}
@@ -573,7 +586,7 @@ function ToolFormModal({
                       type: e.target.value as ParamRow["type"],
                     })
                   }
-                  className="border border-zinc-200 rounded px-2 py-1.5 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="string">Text</option>
                   <option value="number">Number</option>
@@ -585,9 +598,9 @@ function ToolFormModal({
                   onChange={(e) =>
                     updateParam(i, { description: e.target.value })
                   }
-                  className="flex-2 border border-zinc-200 rounded px-2 py-1.5 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="flex-2 bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
-                <label className="flex items-center gap-1 text-xs text-zinc-600 whitespace-nowrap">
+                <label className="flex items-center gap-1 text-xs text-slate-400 whitespace-nowrap">
                   <input
                     type="checkbox"
                     checked={param.required}
@@ -599,7 +612,7 @@ function ToolFormModal({
                 </label>
                 <button
                   onClick={() => removeParam(i)}
-                  className="text-zinc-400 hover:text-red-500"
+                  className="text-slate-500 hover:text-red-400"
                 >
                   <X size={14} />
                 </button>
@@ -607,7 +620,7 @@ function ToolFormModal({
             ))}
             <button
               onClick={addParam}
-              className="flex items-center gap-1 text-xs text-indigo-500 hover:underline w-fit"
+              className="flex items-center gap-1 text-xs text-emerald-400 hover:underline w-fit"
             >
               <Plus size={12} /> Add a piece of information
             </button>
@@ -615,7 +628,7 @@ function ToolFormModal({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-zinc-500 mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             What should this tool actually do?
           </label>
           <select
@@ -623,7 +636,7 @@ function ToolFormModal({
             onChange={(e) =>
               setActionType(e.target.value as Tool["action_type"])
             }
-            className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-green-400"
+            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <option value="call_webhook">Call a real API / website</option>
             <option value="update_user_field">
@@ -640,7 +653,7 @@ function ToolFormModal({
             <select
               value={webhookMethod}
               onChange={(e) => setWebhookMethod(e.target.value)}
-              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               <option value="GET">GET</option>
               <option value="POST">POST</option>
@@ -652,7 +665,7 @@ function ToolFormModal({
               placeholder="https://example.com/api/..."
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
-              className="flex-1 border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
         )}
@@ -662,7 +675,7 @@ function ToolFormModal({
             placeholder="Field name (e.g. preferred_language)"
             value={fieldName}
             onChange={(e) => setFieldName(e.target.value)}
-            className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         )}
 
@@ -671,21 +684,21 @@ function ToolFormModal({
             placeholder="Memory key (e.g. favorite_package)"
             value={memoryKey}
             onChange={(e) => setMemoryKey(e.target.value)}
-            className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         )}
 
         <div className="flex justify-end gap-2 pt-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-zinc-500 hover:text-zinc-700 transition"
+            className="px-4 py-2 text-sm text-slate-400 hover:text-white transition"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="bg-green-400 text-white rounded-lg px-4 py-2 text-sm disabled:opacity-50 hover:bg-green-500 transition"
+            className="bg-emerald-500 text-white rounded-lg px-4 py-2 text-sm disabled:opacity-50 hover:bg-emerald-600 transition"
           >
             {saving ? "Saving..." : "Save"}
           </button>
@@ -723,44 +736,44 @@ function InlineAgentCreate({
   }
 
   return (
-    <div className="border border-indigo-200 bg-indigo-50/50 rounded-lg p-3 flex flex-col gap-2">
-      <span className="text-xs font-medium text-zinc-700">New agent</span>
+    <div className="border border-emerald-500/20 bg-emerald-500/5 rounded-lg p-3 flex flex-col gap-2">
+      <span className="text-xs font-medium text-slate-300">New agent</span>
       <input
         placeholder="name (slug, e.g. billing)"
         value={form.name}
         onChange={(e) => setForm({ ...form, name: e.target.value })}
-        className="w-full border border-zinc-200 rounded px-2 py-1.5 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+        className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
       />
       <input
         placeholder="Display name (e.g. Billing)"
         value={form.display_name}
         onChange={(e) => setForm({ ...form, display_name: e.target.value })}
-        className="w-full border border-zinc-200 rounded px-2 py-1.5 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
       />
       <input
         placeholder="Description (when the router should use this agent)"
         value={form.description}
         onChange={(e) => setForm({ ...form, description: e.target.value })}
-        className="w-full border border-zinc-200 rounded px-2 py-1.5 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
       />
       <textarea
         placeholder="System prompt"
         value={form.system_prompt}
         onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
         rows={3}
-        className="w-full border border-zinc-200 rounded px-2 py-1.5 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-xs text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
       />
       <div className="flex justify-end gap-2">
         <button
           onClick={onCancel}
-          className="text-xs text-zinc-500 hover:text-zinc-700"
+          className="text-xs text-slate-400 hover:text-white"
         >
           Cancel
         </button>
         <button
           onClick={handleCreate}
           disabled={saving || !form.name}
-          className="bg-indigo-500 text-white rounded px-3 py-1.5 text-xs disabled:opacity-50 hover:bg-indigo-600 transition"
+          className="bg-emerald-500 text-white rounded px-3 py-1.5 text-xs disabled:opacity-50 hover:bg-emerald-600 transition"
         >
           {saving ? "Creating..." : "Create & Use"}
         </button>
@@ -783,15 +796,15 @@ function Modal({
   maxWidth?: string;
 }) {
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div
-        className={`bg-white rounded-xl shadow-xl w-full ${maxWidth} p-6 max-h-[90vh] overflow-y-auto`}
+        className={`bg-slate-900 border border-slate-800 rounded-xl shadow-xl w-full ${maxWidth} p-6 max-h-[90vh] overflow-y-auto`}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
+          <h2 className="text-base font-semibold text-white">{title}</h2>
           <button
             onClick={onClose}
-            className="text-zinc-400 hover:text-zinc-700 transition"
+            className="text-slate-400 hover:text-white transition"
           >
             <X size={18} />
           </button>

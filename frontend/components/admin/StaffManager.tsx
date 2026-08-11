@@ -67,16 +67,21 @@ export default function StaffManager() {
       key: "name",
       header: "Name",
       cell: (member: Staff) => (
-        <span className="text-sm font-semibold text-zinc-900">
-          {member.name}
-        </span>
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400 text-sm font-bold uppercase">
+            {member.name.charAt(0)}
+          </div>
+          <span className="text-sm font-semibold text-white">
+            {member.name}
+          </span>
+        </div>
       ),
     },
     {
       key: "phone_number",
       header: "Phone",
       cell: (member: Staff) => (
-        <span className="text-xs text-zinc-600 font-mono">
+        <span className="text-xs text-slate-400 font-mono">
           {member.phone_number || "—"}
         </span>
       ),
@@ -85,14 +90,14 @@ export default function StaffManager() {
       key: "email",
       header: "Email",
       cell: (member: Staff) => (
-        <span className="text-xs text-zinc-600">{member.email}</span>
+        <span className="text-xs text-slate-400">{member.email}</span>
       ),
     },
     {
       key: "specialty",
       header: "Specialty",
       cell: (member: Staff) => (
-        <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/20">
+        <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-indigo-500/10 text-indigo-400 ring-1 ring-indigo-500/20">
           {member.specialty}
         </span>
       ),
@@ -106,13 +111,13 @@ export default function StaffManager() {
           inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
           ${
             member.is_available
-              ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20"
-              : "bg-zinc-100 text-zinc-600 ring-1 ring-zinc-600/10"
+              ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20"
+              : "bg-slate-800 text-slate-400 ring-1 ring-slate-700"
           }
         `}
         >
           <span
-            className={`h-1.5 w-1.5 rounded-full ${member.is_available ? "bg-emerald-500" : "bg-zinc-400"}`}
+            className={`h-1.5 w-1.5 rounded-full ${member.is_available ? "bg-emerald-500" : "bg-slate-500"}`}
           />
           {member.is_available ? "Available" : "Unavailable"}
         </span>
@@ -123,12 +128,12 @@ export default function StaffManager() {
       header: "Case Status",
       cell: (member: Staff) =>
         member.active_case_count > 0 ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-50 text-amber-700 ring-1 ring-amber-600/20">
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
             On Case ({member.active_case_count})
           </span>
         ) : (
-          <span className="text-xs text-zinc-400">Free</span>
+          <span className="text-xs text-slate-500">Free</span>
         ),
     },
     {
@@ -138,50 +143,55 @@ export default function StaffManager() {
       cell: (member: Staff) => (
         <div className="flex justify-end">
           <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-full hover:bg-muted/50"
-                >
-                  <MoreVertical size={16} className="text-muted-foreground" />
-                </Button>
-              }
-            />
+            <DropdownMenuTrigger>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full hover:bg-slate-800 text-slate-400"
+              >
+                <MoreVertical size={16} />
+              </Button>
+            </DropdownMenuTrigger>
 
-            <DropdownMenuContent align="end" className="w-44 rounded-xl">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
+            <DropdownMenuContent
+              align="end"
+              className="w-44 rounded-xl bg-slate-900 border-slate-800"
+            >
+              <DropdownMenuLabel className="text-slate-400">
+                Actions
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-slate-800" />
+
               <DropdownMenuItem
-                className="cursor-pointer gap-2 rounded-lg text-xs font-medium"
+                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-slate-200 focus:bg-slate-800 focus:text-white"
                 onClick={() => router.push(`/admin/staffs/${member.id}`)}
               >
-                <Eye size={14} className="text-muted-foreground" />
+                <Eye size={14} />
                 View Details
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
+
+              <DropdownMenuSeparator className="bg-slate-800" />
 
               <DropdownMenuItem
-                className="cursor-pointer gap-2 rounded-lg text-xs font-medium"
+                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-slate-200 focus:bg-slate-800 focus:text-white"
                 onClick={() => setEditingStaff(member)}
               >
-                <Pencil size={14} className="text-muted-foreground" />
+                <Pencil size={14} />
                 Edit
               </DropdownMenuItem>
 
               <DropdownMenuItem
-                className="cursor-pointer gap-2 rounded-lg text-xs font-medium"
+                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-slate-200 focus:bg-slate-800 focus:text-white"
                 onClick={() => handleToggle(member)}
               >
-                <Power size={14} className="text-muted-foreground" />
+                <Power size={14} />
                 {member.is_available ? "Mark Unavailable" : "Mark Available"}
               </DropdownMenuItem>
 
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="bg-slate-800" />
 
               <DropdownMenuItem
-                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-destructive focus:bg-destructive/10 focus:text-destructive"
+                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-red-400 focus:bg-red-950 focus:text-red-300"
                 onClick={() => setDeletingStaff(member)}
               >
                 <Trash2 size={14} />
@@ -195,7 +205,11 @@ export default function StaffManager() {
   ];
 
   if (error)
-    return <div className="p-8 text-red-500 text-sm bg-white m-6">{error}</div>;
+    return (
+      <div className="p-8 text-red-400 text-sm bg-slate-950 m-6 rounded-xl border border-slate-800">
+        {error}
+      </div>
+    );
 
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-3 p-3 sm:p-4 md:p-5">
@@ -209,9 +223,9 @@ export default function StaffManager() {
         headerAction={
           <Button
             onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-2 bg-green-400 text-white rounded-xl px-4 py-2 text-sm font-medium hover:bg-green-500 transition-colors shadow-sm shadow-indigo-500/20 cursor-pointer"
+            className="h-8 gap-2 rounded-xl bg-emerald-500 px-4 text-xs font-bold text-white hover:bg-emerald-600 cursor-pointer"
           >
-            <Plus size={18} />
+            <Plus size={14} />
             New Staff Member
           </Button>
         }

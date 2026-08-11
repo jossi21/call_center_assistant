@@ -6,7 +6,7 @@ export function Modal({
   children,
   title,
   onClose,
-  maxWidth = "max-w-xl",
+  maxWidth = "max-w-lg",
 }: {
   children: React.ReactNode;
   title: string;

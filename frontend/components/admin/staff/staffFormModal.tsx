@@ -1,15 +1,12 @@
+// components/admin/staff/StaffFormModal.tsx
 "use client";
 
 import { useState } from "react";
-import { Modal } from "@/components/ui/Modal";
+import { X } from "lucide-react";
 import { Staff } from "@/services/staffsApi";
+import { Button } from "@/components/ui/button";
 
-export function StaffFormModal({
-  initial,
-  title,
-  onClose,
-  onSubmit,
-}: {
+interface StaffFormModalProps {
   initial?: Staff;
   title: string;
   onClose: () => void;
@@ -19,7 +16,14 @@ export function StaffFormModal({
     email: string;
     specialty: string;
   }) => Promise<void>;
-}) {
+}
+
+export function StaffFormModal({
+  initial,
+  title,
+  onClose,
+  onSubmit,
+}: StaffFormModalProps) {
   const [name, setName] = useState(initial?.name || "");
   const [phoneNumber, setPhoneNumber] = useState(initial?.phone_number || "");
   const [email, setEmail] = useState(initial?.email || "");
@@ -60,71 +64,80 @@ export function StaffFormModal({
   }
 
   return (
-    <Modal onClose={onClose} title={title} maxWidth="max-w-sm">
-      <div className="flex flex-col gap-3">
-        {error && <div className="text-sm text-red-600">{error}</div>}
-
-        {!initial && (
-          <div>
-            <label className="block text-xs font-medium text-zinc-500 mb-1">
-              Phone number (09XXXXXXXX)
-            </label>
-            <input
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-        )}
-        <div>
-          <label className="block text-xs font-medium text-zinc-500 mb-1">
-            Name
-          </label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-zinc-500 mb-1">
-            Email
-          </label>
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-zinc-500 mb-1">
-            Specialty (e.g. support, sales, hr — matches an agent name)
-          </label>
-          <input
-            value={specialty}
-            onChange={(e) => setSpecialty(e.target.value)}
-            className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl w-full max-w-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-white">{title}</h2>
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-zinc-500 hover:text-zinc-700 transition"
+            className="text-slate-400 hover:text-white transition"
           >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-green-400 text-white rounded-lg px-4 py-2 text-sm disabled:opacity-50 hover:bg-green-500 transition"
-          >
-            {saving ? "Saving..." : "Save"}
+            <X size={18} />
           </button>
         </div>
+
+        <div className="flex flex-col gap-4">
+          {error && <div className="text-sm text-red-400">{error}</div>}
+
+          {!initial && (
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1">
+                Phone number (09XXXXXXXX)
+              </label>
+              <input
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">
+              Name
+            </label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">
+              Email
+            </label>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">
+              Specialty (e.g. support, sales, hr — matches an agent name)
+            </label>
+            <input
+              value={specialty}
+              onChange={(e) => setSpecialty(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="bg-emerald-500 text-white hover:bg-emerald-600 cursor-pointer"
+            >
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        </div>
       </div>
-    </Modal>
+    </div>
   );
 }

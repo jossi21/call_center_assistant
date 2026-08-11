@@ -1,3 +1,4 @@
+// components/admin/AgentsManager.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -75,14 +76,14 @@ export default function AgentsManager() {
       header: "Agent",
       cell: (agent: Agent) => (
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400 text-sm font-bold">
             {agent.display_name.charAt(0)}
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold text-foreground">
+            <span className="text-sm font-semibold text-white">
               {agent.display_name}
             </span>
-            <span className="text-xs text-muted-foreground">{agent.name}</span>
+            <span className="text-xs text-slate-400">{agent.name}</span>
           </div>
         </div>
       ),
@@ -91,7 +92,7 @@ export default function AgentsManager() {
       key: "description",
       header: "Description",
       cell: (agent: Agent) => (
-        <span className="text-sm text-muted-foreground max-w-xs truncate block">
+        <span className="text-sm text-slate-300 max-w-xs truncate block">
           {agent.description}
         </span>
       ),
@@ -102,17 +103,17 @@ export default function AgentsManager() {
       cell: (agent: Agent) => (
         <span
           className={`
-            inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
-            ${
-              agent.is_active
-                ? "bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-500/20 dark:text-emerald-400"
-                : "bg-amber-500 ring-1 ring-border"
-            }
-          `}
+          inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
+          ${
+            agent.is_active
+              ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20"
+              : "bg-slate-800 text-slate-400 ring-1 ring-slate-700"
+          }
+        `}
         >
           <span
             className={`h-1.5 w-1.5 rounded-full ${
-              agent.is_active ? "bg-emerald-500" : "bg-amber-950"
+              agent.is_active ? "bg-emerald-500" : "bg-slate-500"
             }`}
           />
           {agent.is_active ? "Active" : "Inactive"}
@@ -130,39 +131,43 @@ export default function AgentsManager() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-full hover:bg-muted/50"
+                className="h-8 w-8 rounded-full hover:bg-slate-800 text-slate-400"
               >
-                <MoreVertical size={16} className="text-muted-foreground" />
+                <MoreVertical size={16} />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 rounded-xl">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
+            <DropdownMenuContent
+              align="end"
+              className="w-44 rounded-xl bg-slate-900 border-slate-800"
+            >
+              <DropdownMenuLabel className="text-slate-400">
+                Actions
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-slate-800" />
               <DropdownMenuItem
-                className="cursor-pointer gap-2 rounded-lg text-xs font-medium"
+                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-slate-200 focus:bg-slate-800 focus:text-white"
                 onClick={() => router.push(`/admin/agents/${agent.id}`)}
               >
-                <Eye size={14} className="text-muted-foreground" />
+                <Eye size={14} />
                 View
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem
-                className="cursor-pointer gap-2 rounded-lg text-xs font-medium"
+                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-slate-200 focus:bg-slate-800 focus:text-white"
                 onClick={() => setEditingAgent(agent)}
               >
-                <Pencil size={14} className="text-muted-foreground" />
+                <Pencil size={14} />
                 Edit
               </DropdownMenuItem>
               <DropdownMenuItem
-                className="cursor-pointer gap-2 rounded-lg text-xs font-medium"
+                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-slate-200 focus:bg-slate-800 focus:text-white"
                 onClick={() => handleToggleActive(agent)}
               >
-                <Power size={14} className="text-muted-foreground" />
+                <Power size={14} />
                 {agent.is_active ? "Suspend" : "Activate"}
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="bg-slate-800" />
               <DropdownMenuItem
-                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-destructive focus:bg-destructive/10 focus:text-destructive"
+                className="cursor-pointer gap-2 rounded-lg text-xs font-medium text-red-400 focus:bg-red-950 focus:text-red-300"
                 onClick={() => setDeletingAgent(agent)}
               >
                 <Trash2 size={14} />
@@ -175,7 +180,12 @@ export default function AgentsManager() {
     },
   ];
 
-  if (error) return <div className="p-8 text-destructive text-sm">{error}</div>;
+  if (error)
+    return (
+      <div className="p-8 text-red-400 text-sm bg-slate-950 m-6 rounded-xl border border-slate-800">
+        {error}
+      </div>
+    );
 
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-3 p-3 sm:p-4 md:p-5">
@@ -187,7 +197,7 @@ export default function AgentsManager() {
         headerAction={
           <Button
             onClick={() => setShowCreate(true)}
-            className="h-8 gap-2 rounded-xl bg-green-400 px-4 text-xs font-bold text-primary-foreground hover:bg-green-500 cursor-pointer"
+            className="h-8 gap-2 rounded-xl bg-emerald-500 px-4 text-xs font-bold text-white hover:bg-emerald-600 cursor-pointer"
           >
             <Plus size={14} />
             New Agent
@@ -222,28 +232,12 @@ export default function AgentsManager() {
       )}
 
       {deletingAgent && (
-        <Modal
+        <DeleteModal
           onClose={() => setDeletingAgent(null)}
+          onConfirm={() => handleDelete(deletingAgent)}
           title={`Delete ${deletingAgent.display_name}`}
-        >
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-foreground">
-              Are you sure you want to permanently delete &rdquo;
-              {deletingAgent.display_name}&rdquo;? This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDeletingAgent(null)}>
-                Cancel
-              </Button>
-              <Button
-                className="bg-destructive text-destructive-foreground"
-                onClick={async () => await handleDelete(deletingAgent)}
-              >
-                Delete
-              </Button>
-            </div>
-          </div>
-        </Modal>
+          message={`Are you sure you want to permanently delete "${deletingAgent.display_name}"? This action cannot be undone.`}
+        />
       )}
     </div>
   );
@@ -276,7 +270,7 @@ function EditAgentModal({
     <Modal onClose={onClose} title={`Edit ${agent.display_name}`}>
       <div className="flex flex-col gap-4">
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Description (for routing)
           </label>
           <input
@@ -284,12 +278,12 @@ function EditAgentModal({
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setDescription(e.target.value)
             }
-            className="w-full border border-border rounded-lg px-3 py-2 text-sm text-foreground bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             System Prompt
           </label>
           <textarea
@@ -298,7 +292,7 @@ function EditAgentModal({
               setPrompt(e.target.value)
             }
             rows={8}
-            className="w-full border border-border rounded-lg px-3 py-2 text-sm text-foreground bg-background font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 
@@ -309,7 +303,7 @@ function EditAgentModal({
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="bg-green-400 hover:bg-green-500 cursor-pointer text-primary-foreground"
+            className="bg-emerald-500 text-white hover:bg-emerald-600 cursor-pointer"
           >
             {saving ? "Saving..." : "Save"}
           </Button>
@@ -337,9 +331,9 @@ function CreateAgentModal({
   async function handleCreate(): Promise<void> {
     setSaving(true);
     try {
-      // Basic validation: require name and display_name
       if (!form.name.trim() || !form.display_name.trim()) {
         alert("Name and Display Name are required");
+        setSaving(false);
         return;
       }
       await createAgent(form);
@@ -353,7 +347,7 @@ function CreateAgentModal({
     <Modal onClose={onClose} title="New Agent">
       <div className="flex flex-col gap-4">
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Name (slug)
           </label>
           <input
@@ -362,12 +356,12 @@ function CreateAgentModal({
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setForm({ ...form, name: e.target.value })
             }
-            className="w-full border border-border rounded-lg px-3 py-2 text-sm text-foreground bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Display Name
           </label>
           <input
@@ -376,12 +370,12 @@ function CreateAgentModal({
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setForm({ ...form, display_name: e.target.value })
             }
-            className="w-full border border-border rounded-lg px-3 py-2 text-sm text-foreground bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Description
           </label>
           <input
@@ -390,12 +384,12 @@ function CreateAgentModal({
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setForm({ ...form, description: e.target.value })
             }
-            className="w-full border border-border rounded-lg px-3 py-2 text-sm text-foreground bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             System Prompt
           </label>
           <textarea
@@ -405,7 +399,7 @@ function CreateAgentModal({
               setForm({ ...form, system_prompt: e.target.value })
             }
             rows={5}
-            className="w-full border border-border rounded-lg px-3 py-2 text-sm text-foreground bg-background font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 
@@ -416,7 +410,7 @@ function CreateAgentModal({
           <Button
             onClick={handleCreate}
             disabled={saving || !form.name.trim() || !form.display_name.trim()}
-            className="bg-green-400 hover:bg-green-500 cursor-pointer text-primary-foreground"
+            className="bg-emerald-500 text-white hover:bg-emerald-600 cursor-pointer"
           >
             {saving ? "Creating..." : "Create"}
           </Button>
@@ -436,18 +430,58 @@ function Modal({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-      <div className="bg-card rounded-xl shadow-xl w-full max-w-lg p-6">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl w-full max-w-lg p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-foreground">{title}</h2>
+          <h2 className="text-base font-semibold text-white">{title}</h2>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition"
+            className="text-slate-400 hover:text-white transition"
           >
             <X size={18} />
           </button>
         </div>
         {children}
+      </div>
+    </div>
+  );
+}
+
+function DeleteModal({
+  onClose,
+  onConfirm,
+  title,
+  message,
+}: {
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-sm w-full">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-white font-semibold">{title}</h2>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white transition"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <p className="text-slate-400 text-sm mb-4">{message}</p>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            className="bg-red-600 text-white hover:bg-red-700"
+            onClick={onConfirm}
+          >
+            Delete
+          </Button>
+        </div>
       </div>
     </div>
   );

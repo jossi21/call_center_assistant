@@ -1,3 +1,4 @@
+// components/admin/UsersManager.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -164,17 +165,15 @@ export default function UsersManager() {
       cell: (u: UserSummary) => (
         <div className="flex justify-end">
           <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-full hover:bg-slate-800 text-slate-300"
-                >
-                  <MoreVertical size={16} />
-                </Button>
-              }
-            />
+            <DropdownMenuTrigger>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full hover:bg-slate-800 text-slate-400"
+              >
+                <MoreVertical size={16} />
+              </Button>
+            </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
               className="w-44 rounded-xl bg-slate-900 border-slate-800"
@@ -225,6 +224,7 @@ export default function UsersManager() {
 
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-3 p-3 sm:p-4 md:p-5">
+      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search
@@ -270,6 +270,7 @@ export default function UsersManager() {
         )}
       </div>
 
+      {/* Table */}
       <div className="flex flex-col">
         <Table<UserSummary>
           title="Users"
@@ -288,6 +289,7 @@ export default function UsersManager() {
           }
         />
 
+        {/* Pagination */}
         {!loading && filtered.length > 0 && (
           <div className="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-b-[28px] px-6 py-4">
             <span className="text-xs text-slate-400">
@@ -319,6 +321,8 @@ export default function UsersManager() {
           </div>
         )}
       </div>
+
+      {/* Delete Modal */}
       {deletingUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-sm w-full">

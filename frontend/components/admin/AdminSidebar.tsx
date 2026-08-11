@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 const NAV_ITEMS = [
+  { label: "Analytics", icon: BarChart3, href: "/admin/" },
   { label: "Agents", icon: Bot, href: "/admin/agents" },
   { label: "Languages", icon: Languages, href: "/admin/languages" },
   { label: "Tools", icon: Toolbox, href: "/admin/tools" },
@@ -27,7 +28,6 @@ const NAV_ITEMS = [
   { label: "Staffs", icon: Users2, href: "/admin/staffs" },
   { label: "Users", icon: UserCircle, href: "/admin/users" },
   { label: "Memory", icon: Database, href: "/admin/memory" },
-  { label: "Analytics", icon: BarChart3, href: "/admin/analytics" },
   { label: "Chatbot", icon: MessageSquare, href: "/" },
   { label: "Settings", icon: Settings, href: "/admin/settings" },
   { label: "Profile", icon: User, href: "/admin/profile" },

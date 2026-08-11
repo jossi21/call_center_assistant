@@ -1,3 +1,4 @@
+// components/ui/Table.tsx
 "use client";
 
 import { ReactNode } from "react";
@@ -97,7 +98,7 @@ export function Table<T>({
                     className="border-b border-slate-800/70 last:border-0 bg-slate-950 hover:bg-slate-900/50 transition-colors"
                   >
                     {columns.map((column) => (
-                      <td key={column.key} className="px-6 py-4 text-slate-200">
+                      <td key={column.key} className="px-6 py-4">
                         {column.cell(item)}
                       </td>
                     ))}
