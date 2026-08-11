@@ -5,7 +5,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from app.core.config import settings
 
 # admin folder imports
-from app.models.db import Message, Agent, Tool, PendingAction, User, Language, Handoff, AuditLog
+from app.models.db import Message, Agent, Tool, PendingAction, User, Language, Handoff, AuditLog, UserMemory
 from app.admin.agents.intent_router import classify_intent
 from app.admin.agents.handoff import (
     wants_human_handoff,
@@ -129,7 +129,7 @@ Tool-calling rules:
 """
     if pending_agent_names:
         system_prompt += f"\n\nNote: the user's message may also touch on: {', '.join(pending_agent_names)}. If you haven't already addressed that in your response, briefly acknowledge it and offer to help next."
-
+    system_prompt += _get_user_memory_context(user_id, db)
     system_prompt += language_instruction
 
     messages = [SystemMessage(content=system_prompt)]
@@ -337,3 +337,12 @@ Reply with exactly one word: yes or no.
 """
     result = llm.invoke([SystemMessage(content=check_prompt)])
     return result.content.strip().lower().startswith("yes")
+
+# add a memory-context helper
+def _get_user_memory_context(user_id: str, db: Session) -> str:
+    entries = db.query(UserMemory).filter(UserMemory.user_id == user_id).all()
+    if not entries:
+        return ""
+
+    facts = "\n".join(f"- {e.key}: {e.value}" for e in entries)
+    return f"\n\nKnown facts about this user (from previous conversations):\n{facts}\n\nUse these naturally where relevant. Don't ask for information you already have here."

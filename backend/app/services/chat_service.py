@@ -1,3 +1,4 @@
+import time
 from sqlalchemy.orm import Session
 
 from app.models.chat import ChatRequest, ChatResponse
@@ -12,6 +13,7 @@ def process_chat(request: ChatRequest, db: Session, user_id: str) -> ChatRespons
     user = db.query(User).filter(User.id == user_id).first()
     if user and not user.is_active:
         return ChatResponse(answer="This account has been suspended. Please contact support.", agent="System")
+
     user_message = Message(
         user_id=user_id,
         channel_type="web",
@@ -30,13 +32,17 @@ def process_chat(request: ChatRequest, db: Session, user_id: str) -> ChatRespons
     )
     history.reverse()
 
+    start = time.perf_counter()
     answer, agent_used = handle_message(request.message, history, db, user_id)
+    elapsed_ms = int((time.perf_counter() - start) * 1000)
 
     assistant_message = Message(
         user_id=user_id,
         channel_type="web",
         role="assistant",
         content=answer,
+        agent_name=agent_used,
+        response_time_ms=elapsed_ms,
     )
     db.add(assistant_message)
     db.commit()

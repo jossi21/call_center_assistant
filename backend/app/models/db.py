@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     UniqueConstraint,
     Boolean,
+    Integer
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import declarative_base, relationship
@@ -61,12 +62,13 @@ class Message(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     channel_type = Column(String(20), nullable=False)
-    role = Column(String(10), nullable=False)  # 'user' or 'assistant'
+    role = Column(String(10), nullable=False)
     content = Column(Text, nullable=False)
+    agent_name = Column(String(50), nullable=True)       # NEW — which agent produced this (assistant messages only)
+    response_time_ms = Column(Integer, nullable=True)    # NEW — how long it took to generate (assistant messages only)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
     user = relationship("User", back_populates="messages")
-
 
 class UserMemory(Base):
     __tablename__ = "user_memory"
