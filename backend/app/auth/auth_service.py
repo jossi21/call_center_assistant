@@ -1,17 +1,17 @@
 import random
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
 from app.models.db import OTPVerification, User, UserChannelIdentity
 
-OTP_EXPIRY_MINUTES = 5
+OTP_EXPIRY_MINUTES = 2
 
 
 def generate_otp(db: Session, phone_number: str) -> str:
     code = "".join(random.choices(string.digits, k=6))
-    expires_at = datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)  
 
     otp = OTPVerification(
         phone_number=phone_number,
@@ -21,7 +21,7 @@ def generate_otp(db: Session, phone_number: str) -> str:
     db.add(otp)
     db.commit()
 
-    return code  # demo mode: returned directly instead of sent via SMS
+    return code
 
 
 def verify_otp(db: Session, phone_number: str, code: str, channel_type: str = "web") -> User | None:
@@ -31,7 +31,7 @@ def verify_otp(db: Session, phone_number: str, code: str, channel_type: str = "w
             OTPVerification.phone_number == phone_number,
             OTPVerification.code == code,
             OTPVerification.verified == False,
-            OTPVerification.expires_at > datetime.utcnow(),
+            OTPVerification.expires_at > datetime.now(timezone.utc), 
         )
         .order_by(OTPVerification.created_at.desc())
         .first()
@@ -42,7 +42,6 @@ def verify_otp(db: Session, phone_number: str, code: str, channel_type: str = "w
 
     otp.verified = True
 
-    # Look up existing identity, or create a new user + identity
     identity = (
         db.query(UserChannelIdentity)
         .filter(
@@ -57,13 +56,13 @@ def verify_otp(db: Session, phone_number: str, code: str, channel_type: str = "w
     else:
         user = User()
         db.add(user)
-        db.flush()  # get user.id before creating the identity row
+        db.flush()
 
         identity = UserChannelIdentity(
             user_id=user.id,
             channel_type=channel_type,
             channel_specific_id=phone_number,
-            verified_at=datetime.utcnow(),
+            verified_at=datetime.now(timezone.utc),  
         )
         db.add(identity)
 

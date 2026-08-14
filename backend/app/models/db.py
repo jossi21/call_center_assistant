@@ -31,6 +31,17 @@ class User(Base):
     memory_entries = relationship("UserMemory", back_populates="user")
     audit_entries = relationship("AuditLog", back_populates="user")
 
+
+class Channel(Base):
+    __tablename__ = "channels"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(50), unique=True, nullable=False)  # slug: telegram, whatsapp, facebook, web
+    display_name = Column(String(100), nullable=False)
+    config = Column(JSONB, nullable=False)  # bot_token, webhook_secret, etc.
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
 class OTPVerification(Base):
     __tablename__ = "otp_verifications"
 
@@ -49,13 +60,17 @@ class UserChannelIdentity(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    channel_type = Column(String(20), nullable=False)  # 'web', 'telegram', 'whatsapp', 'facebook'
+    channel_type = Column(String(20), nullable=False)
     channel_specific_id = Column(String(255), nullable=False)
+    username = Column(String(150), nullable=True)       # NEW
+    display_name = Column(String(150), nullable=True)   # NEW
+    pending_phone = Column(String(20), nullable=True)    # NEW — holds the phone during verification
     verified_at = Column(DateTime(timezone=True), nullable=True)
 
     user = relationship("User", back_populates="channel_identities")
 
 
+    
 class Message(Base):
     __tablename__ = "messages"
 

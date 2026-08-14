@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from datetime import datetime, timedelta
 
 from app.core.database import get_db
 from app.core.current_user import require_admin
-from app.models.db import User, UserChannelIdentity, Message, AuditLog, UserMemory, Handoff
+from app.models.db import User, UserChannelIdentity, Message, AuditLog, UserMemory, Handoff, StaffProfile
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -24,7 +25,8 @@ def list_users(db: Session = Depends(get_db), _: str = Depends(require_admin)):
         )
         result.append({
             "id": str(u.id),
-            "phone_number": identity.channel_specific_id if identity else None,
+            "phone_number": identity.channel_specific_id if identity and identity.channel_type != "telegram" else None,
+            "display_name": identity.display_name or identity.username if identity else None,
             "preferred_language": u.preferred_language,
             "is_admin": u.is_admin,
             "message_count": message_count,
@@ -108,6 +110,9 @@ def delete_user(user_id: str, db: Session = Depends(get_db), _: str = Depends(re
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Delete staff_profile first (if exists) - this is the foreign key that was failing
+    db.query(StaffProfile).filter(StaffProfile.user_id == user_id).delete()
+    
     # Reassign handoffs where this user is assigned_staff to NULL
     db.query(Handoff).filter(Handoff.assigned_staff_id == user_id).update(
         {"assigned_staff_id": None}

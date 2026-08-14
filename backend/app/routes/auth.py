@@ -36,11 +36,10 @@ class VerifyOTPBody(BaseModel):
         return v
 
 
-# app/routes/auth.py
 @router.post("/auth/request-otp")
 def request_otp(body: RequestOTPBody, db: Session = Depends(get_db)):
     code = generate_otp(db, body.phone_number)
-    print(f"[DEV OTP] {body.phone_number} -> {code}")  # visible in your uvicorn terminal
+    print(f"[DEV OTP] {body.phone_number} -> {code}")  
     return {"message": "OTP sent"}
 
 

@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routes import health, chat, auth 
 from app.admin import router as admin_router
 from app.staffs import router as staff_router
+from app.channels.router import router as channels_webhook_router  
 
 # create the app 
 app = FastAPI(
@@ -26,6 +27,7 @@ app.include_router(chat.router)
 app.include_router(auth.router)
 app.include_router(admin_router.router)
 app.include_router(staff_router.router)
+app.include_router(channels_webhook_router)  
 
 # home page endpoint
 @app.get("/")
