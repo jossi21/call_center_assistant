@@ -28,11 +28,17 @@ export function AvailabilityToggle({
       disabled={saving}
       className={`
         flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition disabled:opacity-50
-        ${profile.is_available ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20" : "bg-zinc-100 text-zinc-600 ring-1 ring-zinc-600/10"}
+        ${
+          profile.is_available
+            ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 hover:bg-emerald-500/20"
+            : "bg-orange-400 text-white ring-1 ring-slate-700 hover:bg-orange-500"
+        }
       `}
     >
       <span
-        className={`h-2 w-2 rounded-full ${profile.is_available ? "bg-emerald-500" : "bg-zinc-400"}`}
+        className={`h-2 w-2 rounded-full ${
+          profile.is_available ? "bg-emerald-500" : "bg-orange-600"
+        }`}
       />
       {profile.is_available ? "Available" : "Unavailable"}
     </button>

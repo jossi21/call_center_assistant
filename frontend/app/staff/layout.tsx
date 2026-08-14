@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import AdminSidebar from "@/components/admin/AdminSidebar";
+import StaffSidebar from "@/components/staff/StaffSidebar";
 
-export default function AdminLayout({
+export default function StaffLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -25,9 +25,10 @@ export default function AdminLayout({
   }, [router]);
 
   if (!checked || !loggedIn) return null;
+
   return (
-    <div className="flex min-h-screen bg-slate-950">
-      <AdminSidebar />
+    <div className="flex min-h-screen">
+      <StaffSidebar />
       <main className="flex-1 overflow-y-auto bg-slate-900">{children}</main>
     </div>
   );

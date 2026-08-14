@@ -165,14 +165,8 @@ export default function UsersManager() {
       cell: (u: UserSummary) => (
         <div className="flex justify-end">
           <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full hover:bg-slate-800 text-slate-400"
-              >
-                <MoreVertical size={16} />
-              </Button>
+            <DropdownMenuTrigger className="h-8 w-8 rounded-full hover:bg-slate-800 text-slate-400 inline-flex items-center justify-center">
+              <MoreVertical size={16} />
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
@@ -332,18 +326,15 @@ export default function UsersManager() {
               {deletingUser.phone_number}&rdquo;? This action cannot be undone.
             </p>
             <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setDeletingUser(null)}
-                className="text-sm text-slate-400 px-4 py-2 hover:text-white transition"
-              >
+              <Button variant="outline" onClick={() => setDeletingUser(null)}>
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                className="bg-red-600 text-white hover:bg-red-700"
                 onClick={() => handleDelete(deletingUser)}
-                className="bg-red-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-red-700 transition"
               >
                 Delete
-              </button>
+              </Button>
             </div>
           </div>
         </div>
