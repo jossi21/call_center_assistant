@@ -4,15 +4,16 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, field_validator
 from app.models.db import StaffProfile
 
-
-
 from app.core.database import get_db
+from app.core.config import settings
 from app.auth.auth_service import generate_otp, verify_otp
 from app.core.security import create_access_token
 
 router = APIRouter()
 
 PHONE_REGEX = re.compile(r"^09\d{8}$")
+
+
 class RequestOTPBody(BaseModel):
     phone_number: str
 
@@ -22,7 +23,8 @@ class RequestOTPBody(BaseModel):
         if not PHONE_REGEX.match(v):
             raise ValueError("Phone number must be in the format 09XXXXXXXX")
         return v
-    
+
+
 class VerifyOTPBody(BaseModel):
     phone_number: str
     code: str
@@ -39,8 +41,12 @@ class VerifyOTPBody(BaseModel):
 @router.post("/auth/request-otp")
 def request_otp(body: RequestOTPBody, db: Session = Depends(get_db)):
     code = generate_otp(db, body.phone_number)
-    print(f"[DEV OTP] {body.phone_number} -> {code}")  
-    return {"message": "OTP sent"}
+    print(f"[DEV OTP] {body.phone_number} -> {code}")
+
+    response = {"message": "OTP sent"}
+    if settings.dev_mode:
+        response["dev_code"] = code
+    return response
 
 
 @router.post("/auth/verify-otp")

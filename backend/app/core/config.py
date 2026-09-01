@@ -3,6 +3,8 @@ from pydantic_settings import  BaseSettings
 class Settings(BaseSettings):
     app_name: str = "Welcome to the Call Center AI Assistant API"
     groq_api_key: str
+    llm_model: str = "openai/gpt-oss-120b"
+    dev_mode: bool = True
     database_url: str
     jwt_secret:str
 

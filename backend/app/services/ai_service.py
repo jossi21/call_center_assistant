@@ -4,12 +4,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 from app.core.config import settings
 from app.models.db import Message
-
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    temperature=0,
-    api_key=settings.groq_api_key,
-)
+from app.core.llm import llm
 
 # router_llm = ChatOllama(
 #     model="qwen3:8b",

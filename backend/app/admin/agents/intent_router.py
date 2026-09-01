@@ -6,13 +6,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.db import Agent
+from app.core.llm import llm
 
-router_llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    temperature=0,
-    api_key=settings.groq_api_key,
-)
-# router_llm = ChatOllama(
+# llm = ChatOllama(
 #     model="qwen3:8b",
 #     temperature=0,
 #     keep_alive="30m",
@@ -50,7 +46,7 @@ If genuinely ambiguous or a single clear intent, return just one agent.
 If nothing matches clearly, default to the most general support-like agent available.
 """
 
-    structured_router = router_llm.with_structured_output(IntentClassification)
+    structured_router = llm.with_structured_output(IntentClassification)
     result = structured_router.invoke([
         SystemMessage(content=system_prompt),
         HumanMessage(content=message),

@@ -7,8 +7,8 @@ from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage
 
 from app.core.config import settings
+from app.core.llm import llm
 
-llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0, api_key=settings.groq_api_key)
 
 
 def wants_human_handoff(message: str, last_assistant_message: str | None) -> bool:

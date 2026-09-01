@@ -14,17 +14,11 @@ from app.admin.agents.handoff import (
     cancel_handoff
 )
 from app.tools.executor import execute_tool
-
+from app.core.llm import llm
+from typing import Callable, Optional
+import threading
 # from langchain_ollama import ChatOllama
 
-
-
-
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    temperature=0,
-    api_key=settings.groq_api_key,
-)
 
 # llm = ChatOllama(
 #     model="qwen3:8b",
@@ -61,10 +55,18 @@ def _tool_to_llm_schema(tool: Tool) -> dict:
         "function": {"name": tool.name, "description": tool.description, "parameters": tool.parameters_schema},
     }
 
-def handle_message(latest_message: str, history: list[Message], db: Session, user_id: str) -> tuple[str, str]:
+def handle_message(
+    latest_message: str,
+    history: list[Message],
+    db: Session,
+    user_id: str,
+):
+    """Routes the message, runs tools/handoff/confirmation logic, and returns
+    (answer, agent_display_name). Used by non-streaming callers (Telegram,
+    WhatsApp, and the plain /chat endpoint)."""
+
     language_instruction = _get_language_instruction(user_id, db)
 
-    # 1. Handoff confirmation in progress
     pending_handoff = (
         db.query(Handoff)
         .filter(Handoff.user_id == user_id, Handoff.status == "waiting_confirmation")
@@ -74,7 +76,6 @@ def handle_message(latest_message: str, history: list[Message], db: Session, use
     if pending_handoff:
         return _handle_handoff_confirmation_reply(latest_message, pending_handoff, history, db, language_instruction)
 
-    # 2. Tool confirmation in progress — MOVED HERE, now runs before active_handoff
     pending = (
         db.query(PendingAction)
         .filter(PendingAction.user_id == user_id, PendingAction.status == "awaiting_confirmation")
@@ -84,7 +85,6 @@ def handle_message(latest_message: str, history: list[Message], db: Session, use
     if pending and pending.expires_at > datetime.now(timezone.utc):
         return _handle_confirmation_reply(latest_message, pending, db, language_instruction)
 
-    # 3. Active handoff — now runs AFTER the tool-confirmation check
     active_handoff = (
         db.query(Handoff)
         .filter(Handoff.user_id == user_id, Handoff.status.in_(["assigned", "waiting"]))
@@ -98,8 +98,6 @@ def handle_message(latest_message: str, history: list[Message], db: Session, use
         )
         return text, "System"
 
-    # 4. Everything below this line is unchanged — last_assistant_msg, wants_human_handoff,
-    # classify_intent, agent dispatch, tool binding, etc.
     last_assistant_msg = next((m.content for m in reversed(history) if m.role == "assistant"), None)
 
     if wants_human_handoff(latest_message, last_assistant_msg):
@@ -113,7 +111,6 @@ def handle_message(latest_message: str, history: list[Message], db: Session, use
     agent_row = db.query(Agent).filter(Agent.name == primary_agent_name, Agent.is_active == True).first()
     if not agent_row:
         agent_row = db.query(Agent).filter(Agent.is_active == True).first()
-
 
     tools = _get_tools_for_agent(agent_row.name, db)
     tool_schemas = [_tool_to_llm_schema(t) for t in tools]
@@ -140,12 +137,196 @@ Tool-calling rules:
             messages.append(AIMessage(content=msg.content))
 
     llm_with_tools = llm.bind_tools(tool_schemas) if tool_schemas else llm
+
     response = llm_with_tools.invoke(messages)
 
     if response.tool_calls:
         return _handle_tool_call(response, tools, user_id, db, agent_row.display_name, language_instruction)
 
     return response.content, agent_row.display_name
+
+
+def handle_message_stream(
+    latest_message: str,
+    history: list[Message],
+    db: Session,
+    user_id: str,
+    on_stage: Optional[Callable[[str], None]] = None,
+    on_token: Optional[Callable[[str], None]] = None,
+    stop_event: Optional["threading.Event"] = None,
+):
+    """Same routing/tool logic as handle_message, but streams tokens for the
+    plain-reply path via on_token. Non-streamable paths (confirmations, handoff,
+    tool-call results) are returned as complete strings, same as handle_message."""
+
+    def stage(name: str):
+        if on_stage:
+            on_stage(name)
+
+    stage("thinking")
+    language_instruction = _get_language_instruction(user_id, db)
+
+    pending_handoff = (
+        db.query(Handoff)
+        .filter(Handoff.user_id == user_id, Handoff.status == "waiting_confirmation")
+        .order_by(Handoff.created_at.desc())
+        .first()
+    )
+    if pending_handoff:
+        stage("validating")
+        return _handle_handoff_confirmation_reply(latest_message, pending_handoff, history, db, language_instruction, on_stage=on_stage, on_token=on_token, stop_event=stop_event)
+
+    pending = (
+        db.query(PendingAction)
+        .filter(PendingAction.user_id == user_id, PendingAction.status == "awaiting_confirmation")
+        .order_by(PendingAction.created_at.desc())
+        .first()
+    )
+    if pending and pending.expires_at > datetime.now(timezone.utc):
+        stage("validating")
+        return _handle_confirmation_reply(latest_message, pending, db, language_instruction, on_stage=on_stage, on_token=on_token, stop_event=stop_event)
+
+    active_handoff = (
+        db.query(Handoff)
+        .filter(Handoff.user_id == user_id, Handoff.status.in_(["assigned", "waiting"]))
+        .order_by(Handoff.created_at.desc())
+        .first()
+    )
+    if active_handoff and _is_case_status_question(latest_message, active_handoff.reason):
+        stage("generating")
+        text = _generate_in_language(
+            "You're currently connected to our support queue and a team member will respond here shortly. Thanks for your patience.",
+            language_instruction,
+        )
+        return text, "System"
+
+    last_assistant_msg = next((m.content for m in reversed(history) if m.role == "assistant"), None)
+
+    stage("validating")
+    if wants_human_handoff(latest_message, last_assistant_msg):
+        return _start_handoff(latest_message, history, db, user_id, language_instruction)
+
+    classification = classify_intent(latest_message, db, last_assistant_msg)
+
+    primary_agent_name = classification.agents[0]
+    pending_agent_names = classification.agents[1:]
+
+    agent_row = db.query(Agent).filter(Agent.name == primary_agent_name, Agent.is_active == True).first()
+    if not agent_row:
+        agent_row = db.query(Agent).filter(Agent.is_active == True).first()
+
+    tools = _get_tools_for_agent(agent_row.name, db)
+    tool_schemas = [_tool_to_llm_schema(t) for t in tools]
+
+    system_prompt = agent_row.system_prompt
+    system_prompt += """
+
+Tool-calling rules:
+- Only call a tool if the user's CURRENT message clearly and directly requests that action.
+- Do NOT call a tool just because it was discussed or used earlier in the conversation.
+- Do NOT repeat a tool call for something that was already completed, unless the user explicitly asks again.
+- If the current message is a greeting, acknowledgment, or unrelated to any tool, respond normally without calling a tool.
+"""
+    if pending_agent_names:
+        system_prompt += f"\n\nNote: the user's message may also touch on: {', '.join(pending_agent_names)}. If you haven't already addressed that in your response, briefly acknowledge it and offer to help next."
+    system_prompt += _get_user_memory_context(user_id, db)
+    system_prompt += language_instruction
+
+    messages = [SystemMessage(content=system_prompt)]
+    for msg in history:
+        if msg.role == "user":
+            messages.append(HumanMessage(content=msg.content))
+        else:
+            messages.append(AIMessage(content=msg.content))
+
+    llm_with_tools = llm.bind_tools(tool_schemas) if tool_schemas else llm
+
+    stage("generating")
+
+    # Stream the response. If it turns out to include tool_calls, we've already
+    # streamed some text (rare — tool-calling responses are usually pure tool_calls
+    # with empty content), but we still handle the tool call correctly afterward.
+    # If stop_event is set mid-stream, we break immediately: this stops pulling
+    # further chunks from the Groq stream (no further tokens are billed/generated)
+    # and we return whatever partial text was produced so far.
+    full_chunk = None
+    was_stopped = False
+    for chunk in llm_with_tools.stream(messages):
+        if stop_event is not None and stop_event.is_set():
+            was_stopped = True
+            break
+        if chunk.content and on_token:
+            on_token(chunk.content)
+        full_chunk = chunk if full_chunk is None else full_chunk + chunk
+
+    if was_stopped:
+        return (full_chunk.content if full_chunk else ""), agent_row.display_name
+
+    if full_chunk and full_chunk.tool_calls:
+        return _handle_tool_call(full_chunk, tools, user_id, db, agent_row.display_name, language_instruction)
+
+    return full_chunk.content if full_chunk else "", agent_row.display_name
+
+
+def continue_message_stream(
+    partial_answer: str,
+    agent_display_name: str,
+    user_id: str,
+    db: Session,
+    on_stage: Optional[Callable[[str], None]] = None,
+    on_token: Optional[Callable[[str], None]] = None,
+    stop_event: Optional["threading.Event"] = None,
+):
+    """Resume an interrupted assistant reply exactly where it left off.
+
+    This intentionally skips routing/classification/tool logic — the original
+    message already determined which agent should answer and got most of the
+    way there. We just hand the model its own unfinished reply and ask it to
+    keep going, so the continuation reads as one seamless message rather than
+    a new turn."""
+
+    def stage(name: str):
+        if on_stage:
+            on_stage(name)
+
+    stage("generating")
+    language_instruction = _get_language_instruction(user_id, db)
+
+    agent_row = (
+        db.query(Agent)
+        .filter(Agent.display_name == agent_display_name, Agent.is_active == True)
+        .first()
+    )
+    if not agent_row:
+        agent_row = db.query(Agent).filter(Agent.is_active == True).first()
+
+    tools = _get_tools_for_agent(agent_row.name, db)
+    tool_schemas = [_tool_to_llm_schema(t) for t in tools]
+    llm_with_tools = llm.bind_tools(tool_schemas) if tool_schemas else llm
+
+    system_prompt = agent_row.system_prompt + language_instruction
+
+    messages = [
+        SystemMessage(content=system_prompt),
+        AIMessage(content=partial_answer),
+        HumanMessage(content=(
+            "Continue exactly where you left off. Do not repeat any earlier text, "
+            "do not restart, and do not add any preamble or acknowledgement — just "
+            "pick up mid-thought if needed and keep going naturally until the answer "
+            "is complete."
+        )),
+    ]
+
+    full_chunk = None
+    for chunk in llm_with_tools.stream(messages):
+        if stop_event is not None and stop_event.is_set():
+            break
+        if chunk.content and on_token:
+            on_token(chunk.content)
+        full_chunk = chunk if full_chunk is None else full_chunk + chunk
+
+    continuation = full_chunk.content if full_chunk else ""
+    return continuation, agent_row.display_name
 
 
 def _generate_in_language(exact_message: str, language_instruction: str) -> str:
@@ -214,7 +395,7 @@ Summarize the relevant parts of this for the user in a natural, helpful way, in 
     return text, agent_display_name
 
 
-def _handle_confirmation_reply(latest_message: str, pending: PendingAction, db: Session, language_instruction: str) -> tuple[str, str]:
+def _handle_confirmation_reply(latest_message: str, pending: PendingAction, db: Session, language_instruction: str, on_stage: Optional[Callable[[str], None]] = None, on_token: Optional[Callable[[str], None]] = None, stop_event: Optional["threading.Event"] = None):
     confirm_check_prompt = f"""
 The user has a pending action: {pending.tool_name} with details {pending.tool_args}.
 
@@ -256,6 +437,8 @@ Reply with exactly one word:
         pending.status = "cancelled"
         db.commit()
         _log_action(str(pending.user_id), pending.tool_name, pending.tool_args, "declined", db)
+        if on_token is not None or on_stage is not None:
+            return handle_message_stream(latest_message, [], db, str(pending.user_id), on_stage=on_stage, on_token=on_token, stop_event=stop_event)
         return handle_message(latest_message, [], db, str(pending.user_id))
 
 
@@ -283,7 +466,7 @@ Assistant's last message: "{last_assistant_msg or 'none'}"
     return text, "System"
 
 
-def _handle_handoff_confirmation_reply(latest_message: str, handoff: Handoff, history: list[Message], db: Session, language_instruction: str) -> tuple[str, str]:
+def _handle_handoff_confirmation_reply(latest_message: str, handoff: Handoff, history: list[Message], db: Session, language_instruction: str, on_stage: Optional[Callable[[str], None]] = None, on_token: Optional[Callable[[str], None]] = None, stop_event: Optional["threading.Event"] = None):
     confirm_check_prompt = f"""
 Does this message confirm or decline connecting to a human agent? The user may respond in any language.
 Message: "{latest_message}"
@@ -313,6 +496,8 @@ Reply with exactly one word: confirm, decline, or unrelated.
 
     else:
         cancel_handoff(handoff, db)
+        if on_token is not None or on_stage is not None:
+            return handle_message_stream(latest_message, [], db, str(handoff.user_id), on_stage=on_stage, on_token=on_token, stop_event=stop_event)
         return handle_message(latest_message, [], db, str(handoff.user_id))
 
 
