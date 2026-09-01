@@ -127,15 +127,17 @@ export default function AgentsManager() {
       cell: (agent: Agent) => (
         <div className="flex justify-end">
           <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full hover:bg-slate-800 text-slate-400"
-              >
-                <MoreVertical size={16} />
-              </Button>
-            </DropdownMenuTrigger>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full hover:bg-muted/50"
+                >
+                  <MoreVertical size={16} className="text-muted-foreground" />
+                </Button>
+              }
+            />
             <DropdownMenuContent
               align="end"
               className="w-44 rounded-xl bg-slate-900 border-slate-800"
@@ -291,7 +293,7 @@ function EditAgentModal({
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
               setPrompt(e.target.value)
             }
-            rows={8}
+            rows={21}
             className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
@@ -398,7 +400,7 @@ function CreateAgentModal({
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
               setForm({ ...form, system_prompt: e.target.value })
             }
-            rows={5}
+            rows={16}
             className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>

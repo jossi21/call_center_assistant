@@ -12,3 +12,11 @@ export interface ChatResponse {
   answer: string;
   agent: string;
 }
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  agent?: string;
+  id?: number;
+  interrupted?: boolean;
+}

@@ -76,18 +76,6 @@ export function LoginForm() {
     }
   }, [step, startTimer]);
 
-  // Auto-verify when 6 digits are entered
-  useEffect(() => {
-    const fullCode = code.join("");
-    if (fullCode.length === 6 && step === "code" && !hasAutoVerified.current) {
-      hasAutoVerified.current = true;
-      handleVerifyOtp();
-    }
-    if (fullCode.length === 0) {
-      hasAutoVerified.current = false;
-    }
-  }, [code, step, handleVerifyOtp]);
-
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -149,10 +137,16 @@ export function LoginForm() {
     setError(null);
     setLoading(true);
     try {
-      await requestOtp(phone);
+      const res = await requestOtp(phone);
       setStep("code");
-      setCode(Array(6).fill(""));
-      hasAutoVerified.current = false;
+
+      if (res.dev_code) {
+        hasAutoVerified.current = true; // set BEFORE setCode so the effect never fires
+        setCode(res.dev_code.split(""));
+      } else {
+        hasAutoVerified.current = false;
+        setCode(Array(6).fill(""));
+      }
     } catch {
       setError("Invalid number. Check the number and try again.");
     } finally {
@@ -165,9 +159,16 @@ export function LoginForm() {
     setError(null);
     setLoading(true);
     try {
-      await requestOtp(phone);
-      setCode(Array(6).fill(""));
-      hasAutoVerified.current = false;
+      const res = await requestOtp(phone);
+
+      if (res.dev_code) {
+        hasAutoVerified.current = true;
+        setCode(res.dev_code.split(""));
+      } else {
+        hasAutoVerified.current = false;
+        setCode(Array(6).fill(""));
+      }
+
       startTimer();
     } catch {
       setError("Couldn't send code. Try again.");
@@ -240,6 +241,15 @@ export function LoginForm() {
                   />
                 ))}
               </div>
+
+              <button
+                disabled={loading || code.join("").length !== 6}
+                onClick={handleVerifyOtp}
+                className="w-full mt-4 bg-emerald-500 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-emerald-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loading && <Loader2 size={16} className="animate-spin" />}
+                {loading ? "Verifying..." : "Verify Code"}
+              </button>
 
               <div className="flex items-center justify-between mt-4">
                 <button

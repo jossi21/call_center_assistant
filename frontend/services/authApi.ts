@@ -7,7 +7,14 @@ export interface VerifyOtpResponse {
   is_staff: boolean;
 }
 
-export async function requestOtp(phoneNumber: string) {
+export interface RequestOtpResponse {
+  message: string;
+  dev_code?: string;
+}
+
+export async function requestOtp(
+  phoneNumber: string,
+): Promise<RequestOtpResponse> {
   const response = await fetch(`${API_URL}/auth/request-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
