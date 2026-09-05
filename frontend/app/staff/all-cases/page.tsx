@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CasesWorkspace } from "@/components/staff/CasesWorkspace";
+import { AllCasesTable } from "@/components/staff/AllCasesTable";
 
-export default function StaffCasesPage() {
+export default function AllCasesPage() {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -19,5 +19,5 @@ export default function StaffCasesPage() {
   }, [router]);
 
   if (!checked || !loggedIn) return null;
-  return <CasesWorkspace />;
+  return <AllCasesTable />;
 }

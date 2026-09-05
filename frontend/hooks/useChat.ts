@@ -21,7 +21,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 interface SSEHandlers {
   onStart?: (data: {
     stream_id: string;
-    user_message_id: number | null;
+    user_message_id: string | null;
   }) => void;
   onStage?: (stage: string) => void;
   onChunk?: (text: string) => void;
@@ -29,7 +29,7 @@ interface SSEHandlers {
     answer: string;
     agent: string;
     interrupted?: boolean;
-    message_id?: number;
+    message_id?: string;
   }) => void;
 }
 
@@ -90,6 +90,12 @@ export function useChat() {
 
   const streamIdRef = useRef<string | null>(null);
 
+  // Real-time polling: picks up out-of-band assistant messages —
+  // most importantly, human staff replies sent via the staff dashboard
+  // for web-channel handoffs, which never come back through the SSE stream.
+  const pollAfterRef = useRef<string>(new Date().toISOString());
+  const seenIdsRef = useRef<Set<string>>(new Set());
+
   const { stage, messages } = session;
 
   useEffect(() => {
@@ -111,6 +117,49 @@ export function useChat() {
     });
   }, []);
 
+  // Poll for new assistant-role messages (AI or human staff) while authenticated.
+  useEffect(() => {
+    if (stage !== "authenticated") return;
+
+    const interval = setInterval(async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        const res = await fetch(
+          `${API_URL}/chat/messages?after=${encodeURIComponent(pollAfterRef.current)}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.messages?.length) return;
+
+        const fresh = data.messages.filter(
+          (m: { id: string }) => !seenIdsRef.current.has(m.id),
+        );
+        if (fresh.length === 0) return;
+
+        fresh.forEach((m: { id: string }) => seenIdsRef.current.add(m.id));
+        pollAfterRef.current =
+          data.messages[data.messages.length - 1].created_at;
+
+        setSession((prev) => ({
+          ...prev,
+          messages: [
+            ...prev.messages,
+            ...fresh.map((m: { id: string; content: string }) => ({
+              role: "assistant" as const,
+              content: m.content,
+              id: m.id,
+            })),
+          ],
+        }));
+      } catch {
+        // best-effort — a missed poll just gets caught by the next one
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [stage]);
+
   async function stopStreaming() {
     const streamId = streamIdRef.current;
     if (!streamId) return;
@@ -131,7 +180,7 @@ export function useChat() {
     setCanStop(false);
   }
 
-  function attachUserMessageId(userMessageId: number | null) {
+  function attachUserMessageId(userMessageId: string | null) {
     if (userMessageId === null) return;
     setSession((prev) => {
       const msgs = [...prev.messages];
@@ -167,6 +216,7 @@ export function useChat() {
           setStreamingText("");
           setCanStop(false);
           streamIdRef.current = null;
+          if (data.message_id) seenIdsRef.current.add(String(data.message_id));
           setSession((prev) => ({
             ...prev,
             messages: [
@@ -185,7 +235,7 @@ export function useChat() {
     );
   }
 
-  async function regenerateMessage(messageId: number) {
+  async function regenerateMessage(messageId: string) {
     setStreamStage("thinking");
     setStreamingText("");
     setCanStop(false);
@@ -211,6 +261,7 @@ export function useChat() {
           setStreamingText("");
           setCanStop(false);
           streamIdRef.current = null;
+          if (data.message_id) seenIdsRef.current.add(String(data.message_id));
           setSession((prev) => ({
             ...prev,
             messages: [
@@ -229,7 +280,7 @@ export function useChat() {
     );
   }
 
-  async function continueMessage(messageId: number) {
+  async function continueMessage(messageId: string) {
     setCanStop(false);
     streamIdRef.current = null;
 
@@ -269,7 +320,7 @@ export function useChat() {
     navigator.clipboard?.writeText(content).catch(() => {});
   }
 
-  async function editMessage(messageId: number, newContent: string) {
+  async function editMessage(messageId: string, newContent: string) {
     const token = localStorage.getItem("access_token");
     await fetch(`${API_URL}/chat/edit`, {
       method: "POST",
@@ -393,6 +444,8 @@ export function useChat() {
     setCanStop(false);
     setPrefillValue(null);
     streamIdRef.current = null;
+    seenIdsRef.current = new Set();
+    pollAfterRef.current = new Date().toISOString();
     setSession({
       stage: "awaiting_phone",
       messages: [DEFAULT_MESSAGE],

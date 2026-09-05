@@ -24,3 +24,23 @@ export async function sendMessage(data: ChatRequest): Promise<ChatResponse> {
 
   return response.json();
 }
+
+export interface PolledMessage {
+  id: string;
+  role: string;
+  content: string;
+  created_at: string;
+}
+
+export async function getChatMessages(
+  after?: string,
+): Promise<PolledMessage[]> {
+  const token = localStorage.getItem("access_token");
+  const params = after ? `?after=${encodeURIComponent(after)}` : "";
+  const res = await fetch(`${API_URL}/chat/messages${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Failed to poll messages");
+  const data = await res.json();
+  return data.messages;
+}

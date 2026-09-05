@@ -1,14 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { Sidebar, NavItem } from "@/components/ui/SharedSidebar";
+
 import {
   LayoutDashboard,
   ClipboardList,
-  MessageSquare,
+  FolderKanban,
+  Bell,
+  MessagesSquare,
+  Bot,
+  BookOpen,
   User,
   Settings,
 } from "lucide-react";
-import { Sidebar, NavItem } from "@/components/ui/SharedSidebar";
 
 const STAFF_NAV_ITEMS: NavItem[] = [
   {
@@ -22,14 +26,45 @@ const STAFF_NAV_ITEMS: NavItem[] = [
     icon: ClipboardList,
     href: "/staff/cases",
     roles: ["staff"],
+    badge: 5,
   },
   {
-    label: "Chatbot",
-    icon: MessageSquare,
-    href: "/",
-    roles: ["admin", "staff"],
+    label: "All Cases",
+    icon: FolderKanban,
+    href: "/staff/all-cases",
+    roles: ["staff"],
   },
-  { label: "Profile", icon: User, href: "/staff/profile", roles: ["staff"] },
+  {
+    label: "Mentions",
+    icon: Bell,
+    href: "/staff/mentions",
+    roles: ["staff"],
+    badge: 2,
+  },
+  {
+    label: "My Chats",
+    icon: MessagesSquare,
+    href: "/staff/chats",
+    roles: ["staff"],
+  },
+  {
+    label: "Chatbot Assistant",
+    icon: Bot,
+    href: "/staff/chatbot",
+    roles: ["staff"],
+  },
+  {
+    label: "Knowledge Base",
+    icon: BookOpen,
+    href: "/staff/knowledge-base",
+    roles: ["staff"],
+  },
+  {
+    label: "Profile",
+    icon: User,
+    href: "/staff/profile",
+    roles: ["staff"],
+  },
   {
     label: "Settings",
     icon: Settings,

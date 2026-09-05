@@ -14,6 +14,7 @@ import {
   MessageSquare,
   Settings,
   User,
+  FileText,
 } from "lucide-react";
 import { Sidebar, NavItem } from "@/components/ui/SharedSidebar";
 
@@ -31,6 +32,12 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     label: "Channels",
     icon: Webhook,
     href: "/admin/channels",
+    roles: ["admin"],
+  },
+  {
+    label: "Templates",
+    icon: FileText,
+    href: "/admin/templates",
     roles: ["admin"],
   },
   { label: "Admins", icon: Users, href: "/admin/admins", roles: ["admin"] },
