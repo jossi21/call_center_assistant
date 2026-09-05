@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     Column,
@@ -14,6 +14,9 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import declarative_base, relationship
 
+def utcnow():
+    return datetime.now(timezone.utc)
+
 Base = declarative_base()
 
 
@@ -24,7 +27,10 @@ class User(Base):
     preferred_language = Column(String(10), default="en", nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    name = Column(String(150), nullable=True)       # NEW
+    location = Column(String(150), nullable=True)   # NEW
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+    ...
 
     channel_identities = relationship("UserChannelIdentity", back_populates="user")
     messages = relationship("Message", back_populates="user")
@@ -40,7 +46,7 @@ class Channel(Base):
     display_name = Column(String(100), nullable=False)
     config = Column(JSONB, nullable=False)  # bot_token, webhook_secret, etc.
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
 
 class OTPVerification(Base):
     __tablename__ = "otp_verifications"
@@ -50,7 +56,7 @@ class OTPVerification(Base):
     code = Column(String(6), nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     verified = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
 
 class UserChannelIdentity(Base):
     __tablename__ = "user_channel_identities"
@@ -81,7 +87,7 @@ class Message(Base):
     content = Column(Text, nullable=False)
     agent_name = Column(String(50), nullable=True)       # NEW — which agent produced this (assistant messages only)
     response_time_ms = Column(Integer, nullable=True)    # NEW — how long it took to generate (assistant messages only)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
 
     user = relationship("User", back_populates="messages")
 
@@ -95,7 +101,7 @@ class UserMemory(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     key = Column(String(100), nullable=False)
     value = Column(Text, nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     user = relationship("User", back_populates="memory_entries")
 
@@ -108,7 +114,7 @@ class AuditLog(Base):
     action = Column(String(100), nullable=False)
     payload = Column(JSONB, nullable=True)
     result = Column(String(20), nullable=True)  # 'success', 'failed', 'pending_confirmation'
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
 
     user = relationship("User", back_populates="audit_entries")
 
@@ -123,7 +129,7 @@ class Agent(Base):
     description = Column(Text, nullable=False)               # tells the router when to use this agent
     system_prompt = Column(Text, nullable=False)             # the agent's actual persona/instructions
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
 
 # tools
 class Tool(Base):
@@ -138,7 +144,7 @@ class Tool(Base):
     action_config = Column(JSONB, nullable=False)
     agent_name = Column(String(50), nullable=True)  # which agent this tool belongs to; null = available to all
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
 
 # pending action database
 class PendingAction(Base):
@@ -149,7 +155,7 @@ class PendingAction(Base):
     tool_name = Column(String(100), nullable=False)
     tool_args = Column(JSONB, nullable=False)
     status = Column(String(30), default="awaiting_confirmation", nullable=False)  # widened from 20 to 30
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
 # Language database
@@ -171,7 +177,8 @@ class StaffProfile(Base):
     email = Column(String(255), nullable=False)
     specialty = Column(String(50), nullable=False)
     is_available = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    status = Column(String(20), default="available", nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
 
 # Agent database 
 class Handoff(Base):
@@ -183,6 +190,18 @@ class Handoff(Base):
     originating_agent = Column(String(50), nullable=True)
     status = Column(String(30), default="waiting_confirmation", nullable=False)
     assigned_staff_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    priority = Column(String(10), default="medium", nullable=False)  # low, medium, high
+    created_at = Column(DateTime(timezone=True), default=utcnow)
     assigned_at = Column(DateTime(timezone=True), nullable=True)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+# Replay template
+class ReplyTemplate(Base):
+    __tablename__ = "reply_templates"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(String(100), nullable=False)
+    body = Column(Text, nullable=False)
+    category = Column(String(50), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow)

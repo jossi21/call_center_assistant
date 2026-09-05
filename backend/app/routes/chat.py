@@ -2,6 +2,8 @@ import json
 import time
 import uuid
 from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime, timezone
+from fastapi import Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -122,3 +124,36 @@ def chat_edit(request: EditMessageRequest, db: Session = Depends(get_db), user_i
     db.commit()
 
     return {"ok": True}
+
+
+@router.get("/chat/messages")
+def get_new_messages(
+    after: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    query = db.query(Message).filter(
+        Message.user_id == user_id,
+        Message.role == "assistant",
+    )
+
+    if after:
+        try:
+            after_dt = datetime.fromisoformat(after.replace("Z", "+00:00"))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid 'after' timestamp")
+        query = query.filter(Message.created_at > after_dt)
+
+    messages = query.order_by(Message.created_at.asc()).all()
+
+    return {
+        "messages": [
+            {
+                "id": str(m.id),
+                "role": m.role,
+                "content": m.content,
+                "created_at": m.created_at.isoformat(),
+            }
+            for m in messages
+        ]
+    }

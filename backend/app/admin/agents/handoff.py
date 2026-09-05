@@ -62,18 +62,18 @@ def _assign_staff(originating_agent: str | None, db: Session) -> StaffProfile | 
     all_available = db.query(StaffProfile).filter(StaffProfile.is_available == True).all()
     return _pick_least_busy(all_available)
 
-def create_handoff_request(user_id: str, reason: str, originating_agent: str | None, db: Session) -> Handoff:
+def create_handoff_request(user_id: str, reason: str, originating_agent: str | None, db: Session, priority: str = "medium") -> Handoff:
     handoff = Handoff(
         user_id=user_id,
         reason=reason,
         originating_agent=originating_agent,
         status="waiting_confirmation",
+        priority=priority,
     )
     db.add(handoff)
     db.commit()
     db.refresh(handoff)
     return handoff
-
 
 def confirm_handoff(handoff: Handoff, history: list[Message], db: Session) -> str:
     staff = _assign_staff(handoff.originating_agent, db)
