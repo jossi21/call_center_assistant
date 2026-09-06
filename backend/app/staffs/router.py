@@ -93,13 +93,23 @@ def list_my_cases(user_id: str = Depends(get_current_user_id), db: Session = Dep
     )
     result = []
     for c in cases:
-        identity = db.query(UserChannelIdentity).filter(UserChannelIdentity.user_id == c.user_id).first()
         last_msg = (
             db.query(Message)
             .filter(Message.user_id == c.user_id)
             .order_by(Message.created_at.desc())
             .first()
         )
+        channel_type = last_msg.channel_type if last_msg else "web"
+
+        identity = (
+            db.query(UserChannelIdentity)
+            .filter(
+                UserChannelIdentity.user_id == c.user_id,
+                UserChannelIdentity.channel_type == channel_type,
+            )
+            .first()
+        )
+
         history = (
             db.query(Message)
             .filter(Message.user_id == c.user_id)
@@ -112,16 +122,16 @@ def list_my_cases(user_id: str = Depends(get_current_user_id), db: Session = Dep
             "id": str(c.id),
             "reason": c.reason,
             "status": c.status,
-            "channel_type": last_msg.channel_type if last_msg else "web",
+            "channel_type": channel_type,
             "user_contact": identity.channel_specific_id if identity else "unknown",
             "created_at": c.created_at,
             "assigned_at": c.assigned_at,
             "resolved_at": c.resolved_at,
             "history": [{"role": m.role, "content": m.content} for m in history],
             "priority": c.priority,
+            "ai_paused": c.ai_paused,
         })
     return result
-
 
 @router.post("/my-cases/{handoff_id}/resolve")
 def resolve_case(handoff_id: str, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
@@ -339,12 +349,25 @@ def get_case_customer(handoff_id: str, user_id: str = Depends(get_current_user_i
     _require_staff(user_id, db)
     handoff, customer = _get_customer_for_staff(handoff_id, user_id, db)
 
-    identity = (
-        db.query(UserChannelIdentity)
-        .filter(UserChannelIdentity.user_id == customer.id)
-        .order_by(UserChannelIdentity.verified_at.desc().nullslast())
+    last_msg = (
+        db.query(Message)
+        .filter(Message.user_id == customer.id)
+        .order_by(Message.created_at.desc())
         .first()
     )
+    channel_type = last_msg.channel_type if last_msg else None
+
+    identity = (
+        db.query(UserChannelIdentity)
+        .filter(
+            UserChannelIdentity.user_id == customer.id,
+            UserChannelIdentity.channel_type == channel_type,
+        )
+        .first()
+        if channel_type
+        else None
+    )
+
     total_conversations = db.query(Message).filter(Message.user_id == customer.id).count()
 
     return {
@@ -352,12 +375,11 @@ def get_case_customer(handoff_id: str, user_id: str = Depends(get_current_user_i
         "name": customer.name,
         "location": customer.location,
         "phone": identity.channel_specific_id if identity else None,
-        "channel_type": identity.channel_type if identity else None,
+        "channel_type": identity.channel_type if identity else channel_type,
         "verified": bool(identity and identity.verified_at),
         "member_since": customer.created_at,
         "total_conversations": total_conversations,
     }
-
 
 @router.patch("/my-cases/{handoff_id}/customer")
 def update_case_customer(handoff_id: str, body: CustomerUpdate, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
@@ -412,13 +434,13 @@ def list_all_cases(
     date_from: str | None = None,
     date_to: str | None = None,
     page: int = 1,
-    page_size: int = 10,
+    page_size: int = 8,
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     _require_staff(user_id, db)
 
-    query = db.query(Handoff)
+    query = db.query(Handoff).filter(Handoff.assigned_staff_id == user_id)
 
     if status and status != "all":
         query = query.filter(Handoff.status == status)
@@ -430,7 +452,6 @@ def list_all_cases(
 
     all_matching = query.order_by(Handoff.created_at.desc()).all()
 
-    # Customer name / channel filters need the joined data, so filter after enrichment
     rows = []
     for h in all_matching:
         customer_user = db.query(User).filter(User.id == h.user_id).first()
@@ -445,10 +466,6 @@ def list_all_cases(
             .filter(Message.user_id == h.user_id)
             .order_by(Message.created_at.desc())
             .first()
-        )
-        assigned_staff = (
-            db.query(StaffProfile).filter(StaffProfile.user_id == h.assigned_staff_id).first()
-            if h.assigned_staff_id else None
         )
 
         customer_name = (customer_user.name if customer_user and customer_user.name else None) or (
@@ -467,7 +484,7 @@ def list_all_cases(
             "channel_type": channel_type,
             "status": h.status,
             "priority": h.priority,
-            "assigned_to": "You" if str(h.assigned_staff_id) == str(user_id) else (assigned_staff.name if assigned_staff else "Unassigned"),
+            "assigned_to": "You",
             "updated_at": h.resolved_at or h.assigned_at or h.created_at,
         })
 
@@ -476,3 +493,24 @@ def list_all_cases(
     paginated = rows[start : start + page_size]
 
     return {"cases": paginated, "total": total, "page": page, "page_size": page_size}
+
+class AiPauseUpdate(BaseModel):
+    paused: bool
+
+
+@router.patch("/my-cases/{handoff_id}/ai-pause")
+def update_ai_pause(handoff_id: str, body: AiPauseUpdate, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    _require_staff(user_id, db)
+    handoff = db.query(Handoff).filter(Handoff.id == handoff_id, Handoff.assigned_staff_id == user_id).first()
+    if not handoff:
+        raise HTTPException(status_code=404, detail="Case not found or not assigned to you")
+
+    handoff.ai_paused = body.paused
+    db.commit()
+    return {"message": "AI paused" if body.paused else "AI resumed", "ai_paused": handoff.ai_paused}
+
+
+@router.get("/channel-types")
+def get_channel_types_for_staff(user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    _require_staff(user_id, db)
+    return CHANNEL_TYPES

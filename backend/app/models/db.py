@@ -85,12 +85,13 @@ class Message(Base):
     channel_type = Column(String(20), nullable=False)
     role = Column(String(10), nullable=False)
     content = Column(Text, nullable=False)
-    agent_name = Column(String(50), nullable=True)       # NEW — which agent produced this (assistant messages only)
-    response_time_ms = Column(Integer, nullable=True)    # NEW — how long it took to generate (assistant messages only)
+    agent_name = Column(String(50), nullable=True)       
+    is_staff = Column(Boolean, default=False, nullable=False)  
+    response_time_ms = Column(Integer, nullable=True)    
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
     user = relationship("User", back_populates="messages")
-
+    
 class UserMemory(Base):
     __tablename__ = "user_memory"
     __table_args__ = (
@@ -120,6 +121,7 @@ class AuditLog(Base):
 
 
     # Agents data base 
+
 class Agent(Base):
     __tablename__ = "agents"
 
@@ -191,6 +193,7 @@ class Handoff(Base):
     status = Column(String(30), default="waiting_confirmation", nullable=False)
     assigned_staff_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     priority = Column(String(10), default="medium", nullable=False)  # low, medium, high
+    ai_paused = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     assigned_at = Column(DateTime(timezone=True), nullable=True)
     resolved_at = Column(DateTime(timezone=True), nullable=True)

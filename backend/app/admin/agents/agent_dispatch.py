@@ -55,6 +55,54 @@ def _tool_to_llm_schema(tool: Tool) -> dict:
         "function": {"name": tool.name, "description": tool.description, "parameters": tool.parameters_schema},
     }
 
+
+def _is_case_status_question(latest_message: str) -> bool:
+    check_prompt = f"""Is this message specifically asking for a status update or progress check on an existing issue (e.g. "any update?", "what's happening with my case?", "is this fixed yet?")?
+
+Message: "{latest_message}"
+
+Reply with exactly one word: "yes" or "no".
+"""
+    result = llm.invoke([SystemMessage(content=check_prompt)])
+    return result.content.strip().lower().startswith("yes")
+
+
+def _summarize_case_status(handoff: Handoff, db: Session) -> str:
+    staff_messages = (
+        db.query(Message)
+        .filter(Message.user_id == handoff.user_id, Message.role == "assistant", Message.agent_name.isnot(None))
+        .order_by(Message.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    staff_messages.reverse()
+
+    if not staff_messages:
+        return "No updates yet — a specialist is on it and will follow up shortly."
+
+    transcript = "\n".join(f"- {m.content}" for m in staff_messages)
+    prompt = f"""A customer is asking for a status update on this issue: "{handoff.reason}"
+
+Here are the most recent updates from the support agent handling it:
+{transcript}
+
+Write a short, natural status update for the customer based on the above — don't invent anything not stated here."""
+    result = llm.invoke([SystemMessage(content=prompt)])
+    return result.content.strip()
+
+
+def _check_active_handoff(user_id: str, db: Session) -> Optional[Handoff]:
+    """Shared lookup: is there a case assigned to a human where staff has
+    explicitly taken over (ai_paused)? Used identically by both the
+    streaming and non-streaming entry points."""
+    return (
+        db.query(Handoff)
+        .filter(Handoff.user_id == user_id, Handoff.status == "assigned", Handoff.ai_paused == True)
+        .order_by(Handoff.created_at.desc())
+        .first()
+    )
+
+
 def handle_message(
     latest_message: str,
     history: list[Message],
@@ -85,21 +133,35 @@ def handle_message(
     if pending and pending.expires_at > datetime.now(timezone.utc):
         return _handle_confirmation_reply(latest_message, pending, db, language_instruction)
 
-    active_handoff = (
+    last_assistant_msg = next((m.content for m in reversed(history) if m.role == "assistant"), None)
+
+    active_handoff = _check_active_handoff(user_id, db)
+
+    if active_handoff:
+    # Paused: swallow the message entirely. No AI reply, no canned filler —
+    # the customer's message is saved (by the caller) and delivered to staff
+    # over the websocket; staff answers directly, with zero AI intervention.
+        return text, "System"
+
+    # Not paused — AI has full control. But if there's an assigned case (paused
+    # or not) and the customer is asking for a status update on it, answer that
+    # accurately from the case's real history instead of a generic AI guess.
+    current_handoff = (
         db.query(Handoff)
-        .filter(Handoff.user_id == user_id, Handoff.status.in_(["assigned", "waiting"]))
+        .filter(Handoff.user_id == user_id, Handoff.status == "assigned")
         .order_by(Handoff.created_at.desc())
         .first()
     )
-    if active_handoff and _is_case_status_question(latest_message, active_handoff.reason):
-        text = _generate_in_language(
-            "You're currently connected to our support queue and a team member will respond here shortly. Thanks for your patience.",
-            language_instruction,
-        )
+    if (
+        current_handoff
+        and _is_case_status_question(latest_message)
+        and _is_related_to_handoff(latest_message, current_handoff.reason)
+    ):
+        summary = _summarize_case_status(current_handoff, db)
+        text = _generate_in_language(summary, language_instruction)
         return text, "System"
 
-    last_assistant_msg = next((m.content for m in reversed(history) if m.role == "assistant"), None)
-
+    # Otherwise, proceed exactly as if there were no handoff at all.
     if wants_human_handoff(latest_message, last_assistant_msg):
         return _start_handoff(latest_message, history, db, user_id, language_instruction)
 
@@ -186,26 +248,38 @@ def handle_message_stream(
         stage("validating")
         return _handle_confirmation_reply(latest_message, pending, db, language_instruction, on_stage=on_stage, on_token=on_token, stop_event=stop_event)
 
-    active_handoff = (
+    last_assistant_msg = next((m.content for m in reversed(history) if m.role == "assistant"), None)
+
+    active_handoff = _check_active_handoff(user_id, db)
+
+    if active_handoff:
+        return None, "System"
+
+    # Not paused — AI has full control. But if there's an assigned case (paused
+    # or not) and the customer is asking for a status update on it, answer that
+    # accurately from the case's real history instead of a generic AI guess.
+    current_handoff = (
         db.query(Handoff)
-        .filter(Handoff.user_id == user_id, Handoff.status.in_(["assigned", "waiting"]))
+        .filter(Handoff.user_id == user_id, Handoff.status == "assigned")
         .order_by(Handoff.created_at.desc())
         .first()
     )
-    if active_handoff and _is_case_status_question(latest_message, active_handoff.reason):
+    if (
+        current_handoff
+        and _is_case_status_question(latest_message)
+        and _is_related_to_handoff(latest_message, current_handoff.reason)
+    ):
         stage("generating")
-        text = _generate_in_language(
-            "You're currently connected to our support queue and a team member will respond here shortly. Thanks for your patience.",
-            language_instruction,
-        )
+        summary = _summarize_case_status(current_handoff, db)
+        text = _generate_in_language(summary, language_instruction)
         return text, "System"
 
-    last_assistant_msg = next((m.content for m in reversed(history) if m.role == "assistant"), None)
-
+    # Otherwise, proceed exactly as if there were no handoff at all.
     stage("validating")
-    if wants_human_handoff(latest_message, last_assistant_msg):
+    if wants_human_handoff(latest_message,      last_assistant_msg):
         return _start_handoff(latest_message, history, db, user_id, language_instruction)
 
+    
     classification = classify_intent(latest_message, db, last_assistant_msg)
 
     primary_agent_name = classification.agents[0]
@@ -349,7 +423,6 @@ def _handle_tool_call(response, tools: list[Tool], user_id: str, db: Session, ag
     tool_name = tool_call["name"]
     tool_args = tool_call["args"]
 
-    tool = next((t for t in tools if t.name == tool_name), None)
     tool = next((t for t in tools if t.name == tool_name), None)
     if not tool:
         text = _generate_in_language("Tell the user, briefly and politely, that you couldn't process that request.", language_instruction)
@@ -512,16 +585,23 @@ def _log_action(user_id: str, action: str, payload: dict, result: str, db: Sessi
     db.add(entry)
     db.commit()
 
-def _is_case_status_question(latest_message: str, reason: str) -> bool:
-    check_prompt = f"""The user has an open support case with this reason: "{reason}"
 
-Is the user's current message SPECIFICALLY asking about that case's status, progress, or continuing that exact issue?
+def _is_related_to_handoff(latest_message: str, handoff_reason: str) -> bool:
+    """Distinguishes 'still about the handed-off issue' from 'a separate,
+    unrelated request' — so an active handoff only blocks AI replies for
+    messages that actually continue that same issue, not everything the
+    customer says while the case is open."""
+    check_prompt = f"""A customer has an unresolved support case currently being handled by a human agent, about: "{handoff_reason}"
+
+Does the customer's CURRENT message continue, follow up on, or ask about THAT SAME issue? Or is it a new, unrelated request — a different service, a different problem, or general help — that has nothing to do with that case?
 
 Message: "{latest_message}"
-Reply with exactly one word: yes or no.
+
+Reply with exactly one word: "related" or "unrelated".
 """
     result = llm.invoke([SystemMessage(content=check_prompt)])
-    return result.content.strip().lower().startswith("yes")
+    return result.content.strip().lower().startswith("related")
+
 
 # add a memory-context helper
 def _get_user_memory_context(user_id: str, db: Session) -> str:

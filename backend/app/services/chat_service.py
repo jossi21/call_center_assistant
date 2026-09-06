@@ -37,6 +37,10 @@ def process_channel_message(message: str, db: Session, user_id: str, channel_typ
     answer, agent_used = handle_message(message, history, db, user_id)
     elapsed_ms = int((time.perf_counter() - start) * 1000)
 
+    if answer is None:
+        # Paused: no AI reply to persist or send back on this channel.
+        return ChatResponse(answer="", agent=agent_used)
+
     assistant_message = Message(
         user_id=user_id, channel_type=channel_type, role="assistant",
         content=answer, agent_name=agent_used, response_time_ms=elapsed_ms,
@@ -45,7 +49,6 @@ def process_channel_message(message: str, db: Session, user_id: str, channel_typ
     db.commit()
 
     return ChatResponse(answer=answer, agent=agent_used)
-
 
 def process_chat(request: ChatRequest, db: Session, user_id: str) -> ChatResponse:
     return process_channel_message(request.message, db, user_id, channel_type="web")
@@ -147,19 +150,28 @@ def process_chat_stream(
         # finished before the stop request arrived.
         answer = "".join(delivered_text_parts) if interrupted else result["answer"]
 
-        assistant_message = Message(
-            user_id=user_id, channel_type="web", role="assistant",
-            content=answer, agent_name=agent_used, response_time_ms=result["elapsed_ms"],
-        )
-        db.add(assistant_message)
-        db.commit()
-
-        yield "final", {
-            "answer": answer,
+        if answer is None:
+            # Paused: nothing to persist, nothing to show the customer.
+            yield "final", {
+            "answer": None,
             "agent": agent_used,
-            "interrupted": interrupted,
-            "message_id": assistant_message.id,
+            "interrupted": False,
+            "message_id": None,
         }
+        else:
+            assistant_message = Message(
+                user_id=user_id, channel_type="web", role="assistant",
+                content=answer, agent_name=agent_used, response_time_ms=result["elapsed_ms"],
+            )
+            db.add(assistant_message)
+            db.commit()
+
+            yield "final", {
+                "answer": answer,
+                "agent": agent_used,
+                "interrupted": interrupted,
+                "message_id": assistant_message.id,
+            }
     finally:
         stream_registry.unregister(stream_id)
 
