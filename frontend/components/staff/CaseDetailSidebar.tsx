@@ -18,6 +18,7 @@ import {
   Wallet,
   HandHeart,
   FileText,
+  X,
 } from "lucide-react";
 import {
   MyCase,
@@ -64,9 +65,13 @@ function getInitials(value: string) {
 export function CaseDetailSidebar({
   selected,
   onInsertTemplate,
+  open,
+  onClose,
 }: {
   selected: MyCase;
   onInsertTemplate: (text: string) => void;
+  open: boolean;
+  onClose: () => void;
 }) {
   const [customer, setCustomer] = useState<CaseCustomer | null>(null);
   const [customerLoading, setCustomerLoading] = useState(true);
@@ -149,273 +154,304 @@ export function CaseDetailSidebar({
   }, []);
 
   return (
-    <div className="w-80 shrink-0 border-l border-slate-800 bg-slate-950 overflow-y-auto flex flex-col gap-4 p-4">
-      {/* Customer & Channel */}
-      <div className="border border-slate-800 rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-semibold text-white">
-            Customer &amp; Channel
-          </h3>
-          {editingCustomer ? (
-            <button
-              onClick={() => setEditingCustomer(false)}
-              className="text-xs text-slate-500 hover:text-white transition"
-            >
-              Cancel
-            </button>
+    <>
+      {/* Backdrop — only below lg, only when open */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      <div
+        className={`
+          fixed inset-y-0 right-0 z-50 w-80 bg-slate-950 border-l border-slate-800
+          overflow-y-auto flex flex-col gap-4 p-4
+          transform transition-transform duration-200 ease-out
+          ${open ? "translate-x-0" : "translate-x-full"}
+          lg:static lg:translate-x-0 lg:z-auto lg:w-80 lg:shrink-0
+        `}
+      >
+        <button
+          onClick={onClose}
+          className="lg:hidden self-end text-slate-400 hover:text-white transition mb-1"
+        >
+          <X size={18} />
+        </button>
+
+        {/* Customer & Channel */}
+        <div className="border border-slate-800 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-white">
+              Customer &amp; Channel
+            </h3>
+            {editingCustomer ? (
+              <button
+                onClick={() => setEditingCustomer(false)}
+                className="text-xs text-slate-500 hover:text-white transition"
+              >
+                Cancel
+              </button>
+            ) : (
+              <button
+                onClick={() => setEditingCustomer(true)}
+                className="text-xs text-slate-500 hover:text-white transition"
+              >
+                Edit
+              </button>
+            )}
+          </div>
+
+          {customerLoading ? (
+            <div className="text-xs text-slate-500">Loading...</div>
+          ) : !customer ? (
+            <div className="text-xs text-slate-500">
+              Couldn&apos;t load customer info.
+            </div>
           ) : (
-            <button
-              onClick={() => setEditingCustomer(true)}
-              className="text-xs text-slate-500 hover:text-white transition"
-            >
-              Edit
-            </button>
+            <>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-11 h-11 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-semibold text-white shrink-0">
+                  {getInitials(customer.phone ?? selected.user_contact)}
+                </div>
+                <div className="min-w-0">
+                  {editingCustomer ? (
+                    <input
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      placeholder="Customer name"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-sm text-white mb-1"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-medium text-white truncate">
+                        {customer.name || customer.phone || "Unknown"}
+                      </span>
+                      {customer.verified && (
+                        <span className="flex items-center gap-0.5 text-[10px] text-emerald-400 shrink-0">
+                          <CheckCircle2 size={11} />
+                          Verified
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <div className="text-xs text-slate-500">
+                    Customer since{" "}
+                    {new Date(customer.member_since).toLocaleDateString(
+                      undefined,
+                      {
+                        month: "short",
+                        year: "numeric",
+                      },
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 text-xs">
+                <div className="flex items-center gap-2 text-slate-300 font-mono">
+                  <Phone size={12} className="text-slate-500 shrink-0" />
+                  {customer.phone || "No phone"}
+                </div>
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Mail size={12} className="text-slate-600 shrink-0" />
+                  No email
+                </div>
+                <div className="flex items-center gap-2 text-slate-300">
+                  <MapPin size={12} className="text-slate-500 shrink-0" />
+                  {editingCustomer ? (
+                    <input
+                      value={locationInput}
+                      onChange={(e) => setLocationInput(e.target.value)}
+                      placeholder="No location on file"
+                      className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white"
+                    />
+                  ) : (
+                    customer.location || (
+                      <span className="text-slate-600">Location unknown</span>
+                    )
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-slate-300">
+                  <Radio size={12} className="text-slate-500 shrink-0" />
+                  {customer.channel_type || selected.channel_type}
+                </div>
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-slate-800 flex justify-between text-xs">
+                <span className="text-slate-500">Total conversations</span>
+                <span className="text-white">
+                  {customer.total_conversations}
+                </span>
+              </div>
+
+              {editingCustomer ? (
+                <button
+                  onClick={handleSaveCustomer}
+                  disabled={savingCustomer}
+                  className="mt-4 w-full bg-emerald-500 text-white rounded-lg py-1.5 text-xs font-medium hover:bg-emerald-600 transition disabled:opacity-50"
+                >
+                  {savingCustomer ? "Saving..." : "Save"}
+                </button>
+              ) : (
+                <button className="mt-4 w-full flex items-center justify-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition">
+                  View full profile
+                  <ChevronRight size={12} />
+                </button>
+              )}
+            </>
           )}
         </div>
 
-        {customerLoading ? (
-          <div className="text-xs text-slate-500">Loading...</div>
-        ) : !customer ? (
-          <div className="text-xs text-slate-500">
-            Couldn&apos;t load customer info.
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-11 h-11 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-semibold text-white shrink-0">
-                {getInitials(customer.phone ?? selected.user_contact)}
-              </div>
-              <div className="min-w-0">
-                {editingCustomer ? (
-                  <input
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    placeholder="Customer name"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-sm text-white mb-1"
-                  />
-                ) : (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium text-white truncate">
-                      {customer.name || customer.phone || "Unknown"}
-                    </span>
-                    {customer.verified && (
-                      <span className="flex items-center gap-0.5 text-[10px] text-emerald-400 shrink-0">
-                        <CheckCircle2 size={11} />
-                        Verified
-                      </span>
-                    )}
-                  </div>
-                )}
-                <div className="text-xs text-slate-500">
-                  Customer since{" "}
-                  {new Date(customer.member_since).toLocaleDateString(
-                    undefined,
-                    {
-                      month: "short",
-                      year: "numeric",
-                    },
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 text-xs">
-              <div className="flex items-center gap-2 text-slate-300 font-mono">
-                <Phone size={12} className="text-slate-500 shrink-0" />
-                {customer.phone || "No phone"}
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <Mail size={12} className="text-slate-600 shrink-0" />
-                No email
-              </div>
-              <div className="flex items-center gap-2 text-slate-300">
-                <MapPin size={12} className="text-slate-500 shrink-0" />
-                {editingCustomer ? (
-                  <input
-                    value={locationInput}
-                    onChange={(e) => setLocationInput(e.target.value)}
-                    placeholder="No location on file"
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white"
-                  />
-                ) : (
-                  customer.location || (
-                    <span className="text-slate-600">Location unknown</span>
-                  )
-                )}
-              </div>
-              <div className="flex items-center gap-2 text-slate-300">
-                <Radio size={12} className="text-slate-500 shrink-0" />
-                {customer.channel_type || selected.channel_type}
-              </div>
-            </div>
-
-            <div className="mt-3 pt-3 border-t border-slate-800 flex justify-between text-xs">
-              <span className="text-slate-500">Total conversations</span>
-              <span className="text-white">{customer.total_conversations}</span>
-            </div>
-
-            {editingCustomer ? (
-              <button
-                onClick={handleSaveCustomer}
-                disabled={savingCustomer}
-                className="mt-4 w-full bg-emerald-500 text-white rounded-lg py-1.5 text-xs font-medium hover:bg-emerald-600 transition disabled:opacity-50"
-              >
-                {savingCustomer ? "Saving..." : "Save"}
-              </button>
-            ) : (
-              <button className="mt-4 w-full flex items-center justify-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition">
-                View full profile
-                <ChevronRight size={12} />
-              </button>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Case Details */}
-      <div className="border border-slate-800 rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-semibold text-white">Case Details</h3>
-          <button className="text-xs text-slate-500 hover:text-white transition">
-            Edit
-          </button>
-        </div>
-
-        <dl className="flex flex-col gap-2.5 text-xs">
-          {/* NOTE: placeholder — no category field, using reason as a stand-in */}
-          <div className="flex items-center justify-between">
-            <dt className="text-slate-500">Category</dt>
-            <dd className="text-white truncate max-w-[150px]">
-              {selected.reason}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between">
-            <dt className="text-slate-500">Priority</dt>
-            <dd className="flex items-center gap-1.5 text-white capitalize">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  PRIORITY_DOT[selected.priority] ?? "bg-slate-400"
-                }`}
-              />
-              {selected.priority}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between">
-            <dt className="text-slate-500">Status</dt>
-            <dd className="text-white">
-              {STATUS_LABELS[selected.status] ?? selected.status}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between">
-            <dt className="text-slate-500">Source</dt>
-            <dd className="text-white capitalize">{selected.channel_type}</dd>
-          </div>
-        </dl>
-
-        {/* NOTE: placeholder — no tags field on MyCase, "add" is non-functional */}
-        <div className="mt-3 pt-3 border-t border-slate-800">
-          <div className="text-slate-500 text-xs mb-2">Tags</div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="flex items-center gap-1 text-[10px] bg-purple-500/15 text-purple-300 px-2 py-1 rounded-md">
-              <Tag size={10} />
-              {selected.channel_type}
-            </span>
-            <button
-              title="Add tag (not wired up yet)"
-              className="flex items-center justify-center w-6 h-6 rounded-md border border-slate-800 text-slate-500 hover:text-white hover:border-slate-700 transition"
-            >
-              <Plus size={12} />
+        {/* Case Details */}
+        <div className="border border-slate-800 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-white">Case Details</h3>
+            <button className="text-xs text-slate-500 hover:text-white transition">
+              Edit
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* AI Assistant */}
-      <div className="border border-purple-500/30 rounded-2xl p-4 bg-purple-500/5">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="flex items-center gap-1.5 text-xs font-semibold text-white">
-            <Sparkles size={13} className="text-purple-400" />
-            AI Assistant
-          </h3>
-          <span className="text-[10px] text-purple-300">Recommended Reply</span>
-        </div>
-
-        {aiError && (
-          <div className="text-[11px] text-red-400 mb-2">{aiError}</div>
-        )}
-
-        {!aiDraft && !aiLoading ? (
-          <button
-            onClick={generateSuggestion}
-            className="w-full border border-purple-500/40 text-purple-300 rounded-lg py-2 text-xs font-medium hover:bg-purple-500/10 transition"
-          >
-            Generate Suggestion
-          </button>
-        ) : (
-          <>
-            <textarea
-              value={aiLoading ? "Generating..." : aiDraft}
-              onChange={(e) => setAiDraft(e.target.value)}
-              disabled={aiLoading}
-              rows={4}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 resize-none focus:outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-60"
-            />
-
-            <div className="flex items-center gap-2 mt-3">
-              <button
-                onClick={() => onInsertTemplate(aiDraft)}
-                disabled={aiLoading || !aiDraft}
-                className="flex-1 bg-emerald-500 text-white rounded-lg py-1.5 text-xs font-medium hover:bg-emerald-600 transition disabled:opacity-50"
-              >
-                Use Reply
-              </button>
-              <button
-                onClick={generateSuggestion}
-                disabled={aiLoading}
-                title="Regenerate"
-                className="border border-slate-700 text-slate-300 rounded-lg p-1.5 hover:bg-slate-800 transition disabled:opacity-50"
-              >
-                <RefreshCw
-                  size={13}
-                  className={aiLoading ? "animate-spin" : ""}
+          <dl className="flex flex-col gap-2.5 text-xs">
+            {/* NOTE: placeholder — no category field, using reason as a stand-in */}
+            <div className="flex items-center justify-between">
+              <dt className="text-slate-500">Category</dt>
+              <dd className="text-white truncate max-w-[150px]">
+                {selected.reason}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-slate-500">Priority</dt>
+              <dd className="flex items-center gap-1.5 text-white capitalize">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    PRIORITY_DOT[selected.priority] ?? "bg-slate-400"
+                  }`}
                 />
+                {selected.priority}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-slate-500">Status</dt>
+              <dd className="text-white">
+                {STATUS_LABELS[selected.status] ?? selected.status}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-slate-500">Source</dt>
+              <dd className="text-white capitalize">{selected.channel_type}</dd>
+            </div>
+          </dl>
+
+          {/* NOTE: placeholder — no tags field on MyCase, "add" is non-functional */}
+          <div className="mt-3 pt-3 border-t border-slate-800">
+            <div className="text-slate-500 text-xs mb-2">Tags</div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="flex items-center gap-1 text-[10px] bg-purple-500/15 text-purple-300 px-2 py-1 rounded-md">
+                <Tag size={10} />
+                {selected.channel_type}
+              </span>
+              <button
+                title="Add tag (not wired up yet)"
+                className="flex items-center justify-center w-6 h-6 rounded-md border border-slate-800 text-slate-500 hover:text-white hover:border-slate-700 transition"
+              >
+                <Plus size={12} />
               </button>
             </div>
-          </>
-        )}
-      </div>
-
-      {/* Quick Templates */}
-      <div className="border border-slate-800 rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-semibold text-white">Quick Templates</h3>
+          </div>
         </div>
 
-        {templatesLoading ? (
-          <div className="text-xs text-slate-500">Loading templates...</div>
-        ) : templates.length === 0 ? (
-          <div className="text-xs text-slate-500">
-            No templates yet — an admin can add some.
+        {/* AI Assistant */}
+        <div className="border border-purple-500/30 rounded-2xl p-4 bg-purple-500/5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="flex items-center gap-1.5 text-xs font-semibold text-white">
+              <Sparkles size={13} className="text-purple-400" />
+              AI Assistant
+            </h3>
+            <span className="text-[10px] text-purple-300">
+              Recommended Reply
+            </span>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            {templates.map((t) => {
-              const Icon = iconForCategory(t.category);
-              return (
+
+          {aiError && (
+            <div className="text-[11px] text-red-400 mb-2">{aiError}</div>
+          )}
+
+          {!aiDraft && !aiLoading ? (
+            <button
+              onClick={generateSuggestion}
+              className="w-full border border-purple-500/40 text-purple-300 rounded-lg py-2 text-xs font-medium hover:bg-purple-500/10 transition"
+            >
+              Generate Suggestion
+            </button>
+          ) : (
+            <>
+              <textarea
+                value={aiLoading ? "Generating..." : aiDraft}
+                onChange={(e) => setAiDraft(e.target.value)}
+                disabled={aiLoading}
+                rows={4}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 resize-none focus:outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-60"
+              />
+
+              <div className="flex items-center gap-2 mt-3">
                 <button
-                  key={t.id}
-                  onClick={() => onInsertTemplate(t.body)}
-                  title={t.body}
-                  className="flex items-center gap-1.5 border border-slate-800 rounded-lg px-2.5 py-2 text-[11px] text-slate-300 hover:bg-slate-800 hover:text-white transition text-left"
+                  onClick={() => onInsertTemplate(aiDraft)}
+                  disabled={aiLoading || !aiDraft}
+                  className="flex-1 bg-emerald-500 text-white rounded-lg py-1.5 text-xs font-medium hover:bg-emerald-600 transition disabled:opacity-50"
                 >
-                  <Icon size={13} className="shrink-0 text-slate-500" />
-                  <span className="truncate">{t.title}</span>
+                  Use Reply
                 </button>
-              );
-            })}
+                <button
+                  onClick={generateSuggestion}
+                  disabled={aiLoading}
+                  title="Regenerate"
+                  className="border border-slate-700 text-slate-300 rounded-lg p-1.5 hover:bg-slate-800 transition disabled:opacity-50"
+                >
+                  <RefreshCw
+                    size={13}
+                    className={aiLoading ? "animate-spin" : ""}
+                  />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Quick Templates */}
+        <div className="border border-slate-800 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-white">
+              Quick Templates
+            </h3>
           </div>
-        )}
+
+          {templatesLoading ? (
+            <div className="text-xs text-slate-500">Loading templates...</div>
+          ) : templates.length === 0 ? (
+            <div className="text-xs text-slate-500">
+              No templates yet — an admin can add some.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {templates.map((t) => {
+                const Icon = iconForCategory(t.category);
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => onInsertTemplate(t.body)}
+                    title={t.body}
+                    className="flex items-center gap-1.5 border border-slate-800 rounded-lg px-2.5 py-2 text-[11px] text-slate-300 hover:bg-slate-800 hover:text-white transition text-left"
+                  >
+                    <Icon size={13} className="shrink-0 text-slate-500" />
+                    <span className="truncate">{t.title}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

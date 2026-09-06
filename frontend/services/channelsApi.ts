@@ -31,7 +31,7 @@ export interface ChannelTypeDef {
 export async function listChannelTypes(): Promise<
   Record<string, ChannelTypeDef>
 > {
-  const res = await fetch(`${API_URL}/admin/channels/channel-types`, {
+  const res = await fetch(`${API_URL}/staff/channel-types`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to load channel types");

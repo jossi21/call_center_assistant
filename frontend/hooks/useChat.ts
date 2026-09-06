@@ -216,6 +216,13 @@ export function useChat() {
           setStreamingText("");
           setCanStop(false);
           streamIdRef.current = null;
+
+          if (!data.answer) {
+            // Paused: AI said nothing — leave the conversation as-is, staff
+            // will reply directly and it'll arrive via the websocket.
+            return;
+          }
+
           if (data.message_id) seenIdsRef.current.add(String(data.message_id));
           setSession((prev) => ({
             ...prev,

@@ -9,9 +9,9 @@ interface Props {
   message: ChatMessage;
   isLast?: boolean;
   onCopy?: (content: string) => void;
-  onEdit?: (id: number, newContent: string) => void;
-  onRegenerate?: (id: number) => void;
-  onContinue?: (id: number) => void;
+  onEdit?: (id: string, newContent: string) => void;
+  onRegenerate?: (id: string) => void;
+  onContinue?: (id: string) => void;
 }
 
 export default function MessageBubble({
@@ -118,7 +118,7 @@ export default function MessageBubble({
 
           {!isUser && message.interrupted && message.id !== undefined && (
             <button
-              onClick={() => onContinue?.(message.id as number)}
+              onClick={() => onContinue?.(message.id as string)}
               title="Continue where it left off"
               className="text-indigo-500 hover:text-indigo-700"
             >
@@ -128,7 +128,7 @@ export default function MessageBubble({
 
           {!isUser && isLast && message.id !== undefined && (
             <button
-              onClick={() => onRegenerate?.(message.id as number)}
+              onClick={() => onRegenerate?.(message.id as string)}
               title="Regenerate"
               className="text-zinc-400 hover:text-zinc-600"
             >

@@ -34,6 +34,7 @@ export interface MyCase {
   created_at: string;
   assigned_at: string | null;
   resolved_at: string | null;
+  ai_paused: boolean; // NEW
   history: CaseMessage[];
 }
 
@@ -77,6 +78,18 @@ export interface CaseCustomer {
   verified: boolean;
   member_since: string;
   total_conversations: number;
+}
+
+export async function updateAiPause(
+  handoffId: string,
+  paused: boolean,
+): Promise<void> {
+  const res = await fetch(`${API_URL}/staff/my-cases/${handoffId}/ai-pause`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ paused }),
+  });
+  if (!res.ok) throw new Error("Failed to update AI pause state");
 }
 
 export interface ReplyTemplate {

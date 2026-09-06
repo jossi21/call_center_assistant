@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MyCase,
   MyProfile,
@@ -8,6 +8,7 @@ import {
   resolveCase,
   sendCaseReply,
   getMyProfile,
+  getCaseMessages,
 } from "@/services/staffProfileApi";
 import { CasesHeader } from "./myCase/CasesHeader";
 import { CasesFilterBar } from "./myCase/CasesFilterBar";
@@ -30,12 +31,17 @@ export function CasesWorkspace() {
   const [listFilter, setListFilter] = useState<ListFilter>("all");
   const [search, setSearch] = useState("");
   const [caseListOpen, setCaseListOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [customerFilter, setCustomerFilter] = useState<string>("all");
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
+
+  // Real-time polling for the currently open case's conversation.
+  const pollAfterRef = useRef<string>(new Date().toISOString());
+  const seenMessagesRef = useRef<Set<string>>(new Set());
 
   const customers = useMemo(
     () => Array.from(new Set(cases.map((c) => c.user_contact))).sort(),
@@ -163,6 +169,52 @@ export function CasesWorkspace() {
 
   const selected = cases.find((c) => c.id === selectedId) || null;
 
+  // Poll for new messages on the currently selected case — picks up new
+  // customer messages (webhook-delivered) without a full reload.
+  useEffect(() => {
+    if (!selected) return;
+    pollAfterRef.current = new Date().toISOString();
+    seenMessagesRef.current = new Set();
+
+    const interval = setInterval(async () => {
+      try {
+        const newMsgs = await getCaseMessages(
+          selected.id,
+          pollAfterRef.current,
+        );
+        if (newMsgs.length === 0) return;
+
+        const fresh = newMsgs.filter((m) => !seenMessagesRef.current.has(m.id));
+        if (fresh.length === 0) return;
+
+        fresh.forEach((m) => seenMessagesRef.current.add(m.id));
+        pollAfterRef.current = newMsgs[newMsgs.length - 1].created_at;
+
+        setCases((prev) =>
+          prev.map((c) =>
+            c.id === selected.id
+              ? {
+                  ...c,
+                  history: [
+                    ...c.history,
+                    ...fresh.map((m) => ({
+                      role: m.role as "user" | "assistant" | "system",
+                      content: m.content,
+                    })),
+                  ],
+                }
+              : c,
+          ),
+        );
+      } catch {
+        // best-effort — a missed poll just gets caught by the next one
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id]);
+
   async function handleSend() {
     if (!selected || !replyText.trim()) return;
     setSending(true);
@@ -252,12 +304,16 @@ export function CasesWorkspace() {
           sending={sending}
           onSend={handleSend}
           onResolve={handleResolve}
+          onAiPauseToggled={refresh}
+          onOpenSidebar={() => setSidebarOpen(true)}
         />
 
         {selected && (
           <CaseDetailSidebar
             selected={selected}
             onInsertTemplate={(text) => setReplyText(text)}
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
           />
         )}
       </div>
