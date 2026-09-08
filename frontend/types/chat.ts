@@ -2,6 +2,7 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   agent?: string;
+  is_staff?: boolean;
   id?: string;
   interrupted?: boolean;
 }

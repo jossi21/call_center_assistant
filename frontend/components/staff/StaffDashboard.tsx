@@ -80,7 +80,7 @@ export function StaffDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-100">
         <div className="text-slate-400">Loading dashboard...</div>
       </div>
     );
@@ -125,7 +125,7 @@ export function StaffDashboard() {
   ].filter((d) => d.value > 0);
 
   return (
-    <div className="h-screen flex flex-col p-3 sm:p-4 md:p-5 gap-4 overflow-hidden">
+    <div className="h-full flex flex-col p-3 sm:p-4 md:p-5 gap-4 overflow-hidden">
       {/* Header */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex items-center justify-between shrink-0">
         <div>

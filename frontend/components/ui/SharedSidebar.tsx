@@ -26,6 +26,7 @@ interface SidebarProps {
   userEmail: string;
   brandName?: string;
   brandSubtitle?: string;
+  showProfileFooter?: boolean;
 }
 
 export function Sidebar({
@@ -35,6 +36,7 @@ export function Sidebar({
   userEmail,
   brandName = "Dashboard",
   brandSubtitle = "Control Panel",
+  showProfileFooter = true,
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -159,55 +161,59 @@ export function Sidebar({
       </nav>
 
       {/* Bottom section */}
-      <div className="p-3 border-t border-slate-800">
-        {!isCollapsed ? (
-          <>
-            <div className="px-3 py-2.5 rounded-lg bg-slate-800/50 mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center ring-2 ring-emerald-500/10 shrink-0">
+      {showProfileFooter && (
+        <div className="p-3 border-t border-slate-800">
+          {!isCollapsed ? (
+            <>
+              <div className="px-3 py-2.5 rounded-lg bg-slate-800/50 mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center ring-2 ring-emerald-500/10 shrink-0">
+                    <User size={14} className="text-emerald-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">
+                      {userName}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {userEmail}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800/50 flex items-center gap-3 transition-all duration-200 group"
+              >
+                <LogOut
+                  size={18}
+                  className="text-slate-500 group-hover:text-slate-300 transition-colors shrink-0"
+                />
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-center mb-3">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center ring-2 ring-emerald-500/10">
                   <User size={14} className="text-emerald-400" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">
-                    {userName}
-                  </p>
-                  <p className="text-xs text-slate-500 truncate">{userEmail}</p>
-                </div>
               </div>
-            </div>
 
-            <button
-              onClick={handleLogout}
-              className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800/50 flex items-center gap-3 transition-all duration-200 group"
-            >
-              <LogOut
-                size={18}
-                className="text-slate-500 group-hover:text-slate-300 transition-colors shrink-0"
-              />
-              Logout
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="flex justify-center mb-3">
-              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center ring-2 ring-emerald-500/10">
-                <User size={14} className="text-emerald-400" />
-              </div>
-            </div>
-
-            <button
-              onClick={handleLogout}
-              className="w-full flex justify-center px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-200 group"
-              title="Logout"
-            >
-              <LogOut
-                size={18}
-                className="text-slate-500 group-hover:text-slate-300 transition-colors"
-              />
-            </button>
-          </>
-        )}
-      </div>
+              <button
+                onClick={handleLogout}
+                className="w-full flex justify-center px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-200 group"
+                title="Logout"
+              >
+                <LogOut
+                  size={18}
+                  className="text-slate-500 group-hover:text-slate-300 transition-colors"
+                />
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </aside>
   );
 }
