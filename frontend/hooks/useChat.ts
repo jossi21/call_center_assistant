@@ -145,11 +145,20 @@ export function useChat() {
           ...prev,
           messages: [
             ...prev.messages,
-            ...fresh.map((m: { id: string; content: string }) => ({
-              role: "assistant" as const,
-              content: m.content,
-              id: m.id,
-            })),
+            ...fresh.map(
+              (m: {
+                id: string;
+                content: string;
+                agent_name?: string | null;
+                is_staff?: boolean;
+              }) => ({
+                role: "assistant" as const,
+                content: m.content,
+                id: m.id,
+                agent: m.agent_name ?? undefined,
+                is_staff: m.is_staff,
+              }),
+            ),
           ],
         }));
       } catch {
@@ -218,8 +227,6 @@ export function useChat() {
           streamIdRef.current = null;
 
           if (!data.answer) {
-            // Paused: AI said nothing — leave the conversation as-is, staff
-            // will reply directly and it'll arrive via the websocket.
             return;
           }
 
@@ -232,6 +239,7 @@ export function useChat() {
                 role: "assistant",
                 content: data.answer,
                 agent: data.agent,
+                is_staff: false,
                 id: data.message_id,
                 interrupted: data.interrupted,
               },

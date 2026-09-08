@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, Pencil, RotateCcw, PlayCircle } from "lucide-react";
+import {
+  Copy,
+  Check,
+  Pencil,
+  RotateCcw,
+  PlayCircle,
+  Headset,
+} from "lucide-react";
 import MarkdownContent from "@/components/MarkdownContent";
 import { ChatMessage } from "@/types/chat";
 
@@ -27,6 +34,7 @@ export default function MessageBubble({
   const [copied, setCopied] = useState(false);
 
   const isUser = message.role === "user";
+  const isStaff = !isUser && !!message.is_staff;
 
   function handleCopy() {
     onCopy?.(message.content);
@@ -39,7 +47,12 @@ export default function MessageBubble({
       className={`group flex flex-col ${isUser ? "items-end" : "items-start"}`}
     >
       {!isUser && message.agent && (
-        <span className="mb-1 text-xs font-semibold text-indigo-600">
+        <span
+          className={`mb-1 flex items-center gap-1 text-xs font-semibold ${
+            isStaff ? "text-blue-600" : "text-indigo-600"
+          }`}
+        >
+          {isStaff && <Headset size={12} />}
           {message.agent}
         </span>
       )}
@@ -48,7 +61,9 @@ export default function MessageBubble({
         className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
           isUser
             ? "rounded-br-md bg-indigo-500 text-white"
-            : "rounded-bl-md bg-white text-zinc-700 shadow-md"
+            : isStaff
+              ? "rounded-bl-md bg-blue-50 text-zinc-700 shadow-md border border-blue-100"
+              : "rounded-bl-md bg-white text-zinc-700 shadow-md"
         }`}
       >
         {editing ? (
@@ -116,17 +131,20 @@ export default function MessageBubble({
             </button>
           )}
 
-          {!isUser && message.interrupted && message.id !== undefined && (
-            <button
-              onClick={() => onContinue?.(message.id as string)}
-              title="Continue where it left off"
-              className="text-indigo-500 hover:text-indigo-700"
-            >
-              <PlayCircle size={14} />
-            </button>
-          )}
+          {!isUser &&
+            !isStaff &&
+            message.interrupted &&
+            message.id !== undefined && (
+              <button
+                onClick={() => onContinue?.(message.id as string)}
+                title="Continue where it left off"
+                className="text-indigo-500 hover:text-indigo-700"
+              >
+                <PlayCircle size={14} />
+              </button>
+            )}
 
-          {!isUser && isLast && message.id !== undefined && (
+          {!isUser && !isStaff && isLast && message.id !== undefined && (
             <button
               onClick={() => onRegenerate?.(message.id as string)}
               title="Regenerate"

@@ -14,14 +14,18 @@ export interface MyProfile {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
   specialty: string;
   is_available: boolean;
   status: StaffStatus;
+  member_since: string;
 }
 
 export interface CaseMessage {
   role: "user" | "assistant" | "system";
   content: string;
+  agent_name?: string | null;
+  is_staff?: boolean;
 }
 
 export interface MyCase {
@@ -104,6 +108,8 @@ export interface PolledMessage {
   id: string;
   role: string;
   content: string;
+  agent_name?: string | null;
+  is_staff?: boolean;
   created_at: string;
 }
 
@@ -286,5 +292,107 @@ export async function listAllCases(params: {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to load all cases");
+  return res.json();
+}
+
+export interface CaseNote {
+  id: string;
+  content: string;
+  author_name: string;
+  created_at: string;
+}
+
+export interface StaffNotification {
+  id: string;
+  type: "mention" | "assignment";
+  actor_name: string;
+  handoff_id: string | null;
+  excerpt: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+export async function getCaseNotes(handoffId: string): Promise<CaseNote[]> {
+  const res = await fetch(`${API_URL}/staff/my-cases/${handoffId}/notes`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to load notes");
+  return res.json();
+}
+
+export async function createCaseNote(
+  handoffId: string,
+  content: string,
+): Promise<void> {
+  const res = await fetch(`${API_URL}/staff/my-cases/${handoffId}/notes`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new Error("Failed to add note");
+}
+
+export async function getNotifications(): Promise<StaffNotification[]> {
+  const res = await fetch(`${API_URL}/staff/notifications`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to load notifications");
+  return res.json();
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/staff/notifications/${id}/read`, {
+    method: "PATCH",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to mark notification read");
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  const res = await fetch(`${API_URL}/staff/notifications/mark-all-read`, {
+    method: "PATCH",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to mark all as read");
+}
+
+export async function updateMyProfile(body: {
+  name?: string;
+  email?: string;
+  specialty?: string;
+}): Promise<MyProfile> {
+  const res = await fetch(`${API_URL}/staff/my-profile`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error("Failed to update profile");
+  return res.json();
+}
+
+export interface StaffSettings {
+  language: string;
+  timezone: string;
+  auto_assign_cases: boolean;
+  play_sound_on_new_message: boolean;
+}
+
+export async function getMySettings(): Promise<StaffSettings> {
+  const res = await fetch(`${API_URL}/staff/my-settings`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to load settings");
+  return res.json();
+}
+
+export async function updateMySettings(
+  body: Partial<StaffSettings>,
+): Promise<StaffSettings> {
+  const res = await fetch(`${API_URL}/staff/my-settings`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error("Failed to update settings");
   return res.json();
 }

@@ -16,13 +16,13 @@ import { CaseListPanel } from "./myCase/CaseListPanel";
 import { CaseDetailPanel } from "./myCase/CaseDetailPanel";
 import { CaseDetailSidebar } from "./CaseDetailSidebar";
 import { ListFilter, Tab, ReplyMode } from "../../lib/case-constants";
+import { createCaseNote } from "@/services/staffProfileApi";
 
 export function CasesWorkspace() {
   const [cases, setCases] = useState<MyCase[]>([]);
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("conversation");
-  const [replyMode, setReplyMode] = useState<ReplyMode>("reply");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,6 +128,7 @@ export function CasesWorkspace() {
       ]);
       setCases(data);
       setProfile(profileData);
+      pollAfterRef.current = new Date().toISOString();
       // intentionally not touching selectedId here — keep whatever's selected
     } catch {
       setError("Couldn't refresh cases.");
@@ -151,19 +152,6 @@ export function CasesWorkspace() {
       assigned: cases.filter((c) => c.status === "assigned").length,
       resolved: cases.filter((c) => c.status === "resolved").length,
     }),
-    [cases],
-  );
-
-  // TODO: replace with a real-time feed from the socket connection later —
-  // for now this is derived from the same `cases` list already loaded via listMyCases()
-  const unresolvedCases = useMemo(
-    () =>
-      [...cases]
-        .filter((c) => c.status === "waiting" || c.status === "assigned")
-        .sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        ),
     [cases],
   );
 
@@ -254,14 +242,8 @@ export function CasesWorkspace() {
   if (error) return <div className="p-8 text-red-400 text-sm">{error}</div>;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
-      <CasesHeader
-        unresolvedCases={unresolvedCases}
-        onSelectCase={selectCase}
-        profile={profile}
-        onProfileUpdated={setProfile}
-        onOpenCaseList={() => setCaseListOpen(true)}
-      />
+    <div className="flex flex-col h-full overflow-hidden">
+      <CasesHeader onOpenCaseList={() => setCaseListOpen(true)} />
 
       <CasesFilterBar
         search={search}
@@ -297,8 +279,6 @@ export function CasesWorkspace() {
           selected={selected}
           tab={tab}
           setTab={setTab}
-          replyMode={replyMode}
-          setReplyMode={setReplyMode}
           replyText={replyText}
           setReplyText={setReplyText}
           sending={sending}

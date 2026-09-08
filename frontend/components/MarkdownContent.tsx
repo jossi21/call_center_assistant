@@ -124,9 +124,7 @@ export default function MarkdownContent({ content }: { content: string }) {
           </h3>
         ),
 
-        p: ({ children }) => (
-          <p className="mb-3 leading-7 last:mb-0">{children}</p>
-        ),
+        p: ({ children }) => <p className=" leading-7 last:mb-0">{children}</p>,
 
         ol: ({ children }) => (
           <ol className="mb-3 ml-6 list-decimal space-y-2">{children}</ol>

@@ -14,6 +14,7 @@ import { MyCase, updateAiPause } from "@/services/staffProfileApi";
 import { TabButton } from "./TabButton";
 import { ConversationThread } from "./ConversationThread";
 import { ReplyBox } from "./ReplyBox";
+import { CaseNotesTab } from "./CaseNotesTab";
 import {
   STATUS_LABELS,
   STATUS_STYLES,
@@ -25,8 +26,6 @@ export function CaseDetailPanel({
   selected,
   tab,
   setTab,
-  replyMode,
-  setReplyMode,
   replyText,
   setReplyText,
   sending,
@@ -38,8 +37,6 @@ export function CaseDetailPanel({
   selected: MyCase | null;
   tab: Tab;
   setTab: (t: Tab) => void;
-  replyMode: ReplyMode;
-  setReplyMode: (m: ReplyMode) => void;
   replyText: string;
   setReplyText: (v: string) => void;
   sending: boolean;
@@ -197,8 +194,6 @@ export function CaseDetailPanel({
               userContact={selected.user_contact}
             />
             <ReplyBox
-              replyMode={replyMode}
-              setReplyMode={setReplyMode}
               replyText={replyText}
               setReplyText={setReplyText}
               sending={sending}
@@ -206,11 +201,7 @@ export function CaseDetailPanel({
             />
           </div>
         )}
-        {tab === "notes" && (
-          <div className="p-6 text-sm text-slate-500 overflow-y-auto h-full">
-            Case notes aren&apos;t available yet — coming in a future update.
-          </div>
-        )}
+        {tab === "notes" && <CaseNotesTab handoffId={selected.id} />}
         {tab === "activity" && (
           <div className="p-6 text-sm text-slate-500 overflow-y-auto h-full">
             Activity timeline isn&apos;t available yet — coming in a future

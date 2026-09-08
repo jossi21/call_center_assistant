@@ -2,18 +2,13 @@
 
 import { useRef } from "react";
 import { Send } from "lucide-react";
-import { ReplyMode } from "../../../lib/case-constants";
 
 export function ReplyBox({
-  replyMode,
-  setReplyMode,
   replyText,
   setReplyText,
   sending,
   onSend,
 }: {
-  replyMode: ReplyMode;
-  setReplyMode: (m: ReplyMode) => void;
   replyText: string;
   setReplyText: (v: string) => void;
   sending: boolean;
@@ -55,11 +50,7 @@ export function ReplyBox({
           onKeyDown={handleKeyDown}
           disabled={sending}
           rows={1}
-          placeholder={
-            replyMode === "reply"
-              ? "Type a message..."
-              : "Add an internal note..."
-          }
+          placeholder="Type a message..."
           className="
     w-full
     min-h-11
@@ -109,32 +100,6 @@ export function ReplyBox({
           title="Send message"
         >
           <Send size={15} />
-        </button>
-      </div>
-
-      <div className="flex items-center gap-4 mt-2 px-1">
-        <button
-          type="button"
-          onClick={() => setReplyMode("reply")}
-          className={`text-xs transition-colors ${
-            replyMode === "reply"
-              ? "text-emerald-400"
-              : "text-slate-500 hover:text-slate-300"
-          }`}
-        >
-          Reply
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setReplyMode("note")}
-          className={`text-xs transition-colors ${
-            replyMode === "note"
-              ? "text-emerald-400"
-              : "text-slate-500 hover:text-slate-300"
-          }`}
-        >
-          Internal note
         </button>
       </div>
     </div>
