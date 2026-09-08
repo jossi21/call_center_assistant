@@ -517,6 +517,27 @@ Reply with exactly one word:
 
 # the function which handel handoff the issue
 def _start_handoff(latest_message: str, history: list[Message], db: Session, user_id: str, language_instruction: str) -> tuple[str, str]:
+    # Prevent duplicate handoffs: if there's already an open request for a
+    # similar issue, don't spin up a second one.
+    existing = (
+        db.query(Handoff)
+        .filter(Handoff.user_id == user_id, Handoff.status.in_(["waiting_confirmation", "waiting", "assigned"]))
+        .order_by(Handoff.created_at.desc())
+        .first()
+    )
+    if existing and _is_related_to_handoff(latest_message, existing.reason):
+        if existing.status == "waiting_confirmation":
+            text = _generate_in_language(
+                "I'd like to confirm — should I connect you with a human agent? (yes/no)",
+                language_instruction,
+            )
+        else:
+            text = _generate_in_language(
+                "You're already connected to our support queue for this — a team member will respond here shortly.",
+                language_instruction,
+            )
+        return text, "System"
+
     last_assistant_msg = next((m.content for m in reversed(history) if m.role == "assistant"), None)
 
     reason_prompt = f"""Summarize, in one short sentence, why this user needs a human agent, based on this context.
@@ -526,8 +547,6 @@ Assistant's last message: "{last_assistant_msg or 'none'}"
     reason_result = llm.invoke([SystemMessage(content=reason_prompt)])
     reason = reason_result.content.strip()
 
-    # infer which agent was active, if any, from the most recent assistant turn's agent label —
-    # not tracked on Message today, so left None for now; falls back to "any available staff"
     originating_agent = None
 
     create_handoff_request(user_id, reason, originating_agent, db)

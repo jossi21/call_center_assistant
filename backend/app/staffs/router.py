@@ -9,7 +9,8 @@ from app.core.llm import llm
 from app.core.database import get_db
 from app.core.current_user import get_current_user_id
 
-from app.models.db import StaffProfile, Handoff, Message, UserChannelIdentity, Channel, ReplyTemplate, User
+
+from app.models.db import StaffProfile, Handoff, Message, UserChannelIdentity, Channel, ReplyTemplate, User, CaseNote, Notification, StaffSettings
 from app.channels.registry import CHANNEL_TYPES
 from app.channels.dispatch import send_via_channel
 
@@ -27,6 +28,19 @@ class PriorityUpdate(BaseModel):
 class AvailabilityUpdate(BaseModel):
     is_available: bool
 
+class NoteCreate(BaseModel):
+    content: str
+
+class StatusUpdate(BaseModel):
+    status: str
+
+class ProfileUpdate(BaseModel):
+    name: str | None = None
+    email: str | None = None
+    specialty: str | None = None
+
+
+    
 def _require_staff(user_id: str, db: Session) -> StaffProfile:
     profile = db.query(StaffProfile).filter(StaffProfile.user_id == user_id).first()
     if not profile:
@@ -40,21 +54,29 @@ def _ensure_utc(dt: datetime | None) -> datetime | None:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
-def _profile_out(profile: StaffProfile) -> dict:
+def _profile_out(profile: StaffProfile, phone: str | None) -> dict:
     return {
         "id": str(profile.id),
         "user_id": str(profile.user_id),
         "name": profile.name,
+        "email": profile.email,
+        "phone": phone,
         "specialty": profile.specialty,
         "is_available": profile.is_available,
         "status": profile.status,
+        "member_since": profile.created_at,
     }
 
 
 @router.get("/my-profile")
 def get_my_profile(user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
-    return _profile_out(_require_staff(user_id, db))
-
+    profile = _require_staff(user_id, db)
+    identity = (
+        db.query(UserChannelIdentity)
+        .filter(UserChannelIdentity.user_id == profile.user_id)
+        .first()
+    )
+    return _profile_out(profile, identity.channel_specific_id if identity else None)
 
 @router.patch("/update-my-availability")
 def update_my_availability(body: AvailabilityUpdate, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
@@ -63,11 +85,31 @@ def update_my_availability(body: AvailabilityUpdate, user_id: str = Depends(get_
     profile.status = "available" if body.is_available else "offline"
     db.commit()
     db.refresh(profile)
-    return _profile_out(profile)
+    identity = (
+        db.query(UserChannelIdentity)
+        .filter(UserChannelIdentity.user_id == profile.user_id)
+        .first()
+    )
+    return _profile_out(profile, identity.channel_specific_id if identity else None)
 
 
-class StatusUpdate(BaseModel):
-    status: str
+@router.patch("/my-profile")
+def update_my_profile(body: ProfileUpdate, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    profile = _require_staff(user_id, db)
+
+    for field, value in body.model_dump(exclude_unset=True).items():
+        if value is not None:
+            setattr(profile, field, value)
+
+    db.commit()
+    db.refresh(profile)
+
+    identity = (
+        db.query(UserChannelIdentity)
+        .filter(UserChannelIdentity.user_id == profile.user_id)
+        .first()
+    )
+    return _profile_out(profile, identity.channel_specific_id if identity else None)
 
 
 @router.patch("/update-my-status")
@@ -79,8 +121,12 @@ def update_my_status(body: StatusUpdate, user_id: str = Depends(get_current_user
     profile.is_available = (body.status == "available")
     db.commit()
     db.refresh(profile)
-    return _profile_out(profile)
-
+    identity = (
+        db.query(UserChannelIdentity)
+        .filter(UserChannelIdentity.user_id == profile.user_id)
+        .first()
+    )
+    return _profile_out(profile, identity.channel_specific_id if identity else None)
 
 @router.get("/get-my-cases")
 def list_my_cases(user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
@@ -185,6 +231,7 @@ def reply_to_case(handoff_id: str, body: ReplyBody, user_id: str = Depends(get_c
         role="assistant",
         content=body.message,
         agent_name=profile.name,
+        is_staff= True,
         response_time_ms=response_time_ms,
     )
     db.add(reply)
@@ -514,3 +561,142 @@ def update_ai_pause(handoff_id: str, body: AiPauseUpdate, user_id: str = Depends
 def get_channel_types_for_staff(user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
     _require_staff(user_id, db)
     return CHANNEL_TYPES
+
+
+@router.get("/my-cases/{handoff_id}/notes")
+def get_case_notes(handoff_id: str, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    _require_staff(user_id, db)
+    handoff = db.query(Handoff).filter(Handoff.id == handoff_id, Handoff.assigned_staff_id == user_id).first()
+    if not handoff:
+        raise HTTPException(status_code=404, detail="Case not found or not assigned to you")
+
+    notes = db.query(CaseNote).filter(CaseNote.handoff_id == handoff_id).order_by(CaseNote.created_at.asc()).all()
+    result = []
+    for n in notes:
+        author = db.query(StaffProfile).filter(StaffProfile.user_id == n.author_user_id).first()
+        result.append({
+            "id": str(n.id),
+            "content": n.content,
+            "author_name": author.name if author else "Unknown",
+            "created_at": n.created_at,
+        })
+    return result
+
+
+@router.post("/my-cases/{handoff_id}/notes")
+def create_case_note(handoff_id: str, body: NoteCreate, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    author = _require_staff(user_id, db)
+    handoff = db.query(Handoff).filter(Handoff.id == handoff_id, Handoff.assigned_staff_id == user_id).first()
+    if not handoff:
+        raise HTTPException(status_code=404, detail="Case not found or not assigned to you")
+
+    note = CaseNote(handoff_id=handoff_id, author_user_id=user_id, content=body.content)
+    db.add(note)
+    db.commit()
+
+    # Parse @Name mentions against known staff, notify each (excluding self-mentions)
+    all_staff = db.query(StaffProfile).all()
+    for staff in all_staff:
+        if staff.user_id == user_id:
+            continue
+        if f"@{staff.name}".lower() in body.content.lower():
+            db.add(Notification(
+                recipient_user_id=staff.user_id,
+                type="mention",
+                actor_name=author.name,
+                handoff_id=handoff_id,
+                excerpt=f"In case: {handoff.reason}",
+            ))
+    db.commit()
+
+    return {"message": "Note added"}
+
+
+@router.get("/notifications")
+def get_notifications(user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    _require_staff(user_id, db)
+    notifs = (
+        db.query(Notification)
+        .filter(Notification.recipient_user_id == user_id)
+        .order_by(Notification.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [
+        {
+            "id": str(n.id),
+            "type": n.type,
+            "actor_name": n.actor_name,
+            "handoff_id": str(n.handoff_id) if n.handoff_id else None,
+            "excerpt": n.excerpt,
+            "is_read": n.is_read,
+            "created_at": n.created_at,
+        }
+        for n in notifs
+    ]
+
+
+@router.patch("/notifications/{notification_id}/read")
+def mark_notification_read(notification_id: str, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    _require_staff(user_id, db)
+    notif = db.query(Notification).filter(Notification.id == notification_id, Notification.recipient_user_id == user_id).first()
+    if not notif:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    notif.is_read = True
+    db.commit()
+    return {"message": "Marked as read"}
+
+
+@router.patch("/notifications/mark-all-read")
+def mark_all_notifications_read(user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    _require_staff(user_id, db)
+    db.query(Notification).filter(Notification.recipient_user_id == user_id, Notification.is_read == False).update({"is_read": True})
+    db.commit()
+    return {"message": "All marked as read"}
+
+
+class StaffSettingsUpdate(BaseModel):
+    language: str | None = None
+    timezone: str | None = None
+    auto_assign_cases: bool | None = None
+    play_sound_on_new_message: bool | None = None
+
+
+def _get_or_create_settings(user_id: str, db: Session) -> StaffSettings:
+    settings_row = db.query(StaffSettings).filter(StaffSettings.user_id == user_id).first()
+    if not settings_row:
+        settings_row = StaffSettings(user_id=user_id)
+        db.add(settings_row)
+        db.commit()
+        db.refresh(settings_row)
+    return settings_row
+
+
+def _settings_out(s: StaffSettings) -> dict:
+    return {
+        "language": s.language,
+        "timezone": s.timezone,
+        "auto_assign_cases": s.auto_assign_cases,
+        "play_sound_on_new_message": s.play_sound_on_new_message,
+    }
+
+
+@router.get("/my-settings")
+def get_my_settings(user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    _require_staff(user_id, db)
+    settings_row = _get_or_create_settings(user_id, db)
+    return _settings_out(settings_row)
+
+
+@router.patch("/my-settings")
+def update_my_settings(body: StaffSettingsUpdate, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    _require_staff(user_id, db)
+    settings_row = _get_or_create_settings(user_id, db)
+
+    for field, value in body.model_dump(exclude_unset=True).items():
+        if value is not None:
+            setattr(settings_row, field, value)
+
+    db.commit()
+    db.refresh(settings_row)
+    return _settings_out(settings_row)

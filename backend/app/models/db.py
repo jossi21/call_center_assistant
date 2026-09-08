@@ -182,6 +182,18 @@ class StaffProfile(Base):
     status = Column(String(20), default="available", nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
+# staff setting
+class StaffSettings(Base):
+    __tablename__ = "staff_settings"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False)
+    language = Column(String(10), default="en", nullable=False)
+    timezone = Column(String(50), default="UTC", nullable=False)
+    auto_assign_cases = Column(Boolean, default=True, nullable=False)
+    play_sound_on_new_message = Column(Boolean, default=True, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
 # Agent database 
 class Handoff(Base):
     __tablename__ = "handoffs"
@@ -207,4 +219,27 @@ class ReplyTemplate(Base):
     body = Column(Text, nullable=False)
     category = Column(String(50), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+
+# Mention
+class CaseNote(Base):
+    __tablename__ = "case_notes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    handoff_id = Column(UUID(as_uuid=True), ForeignKey("handoffs.id"), nullable=False)
+    author_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    recipient_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    type = Column(String(20), nullable=False)  # "mention" | "assignment"
+    actor_name = Column(String(150), nullable=False)
+    handoff_id = Column(UUID(as_uuid=True), ForeignKey("handoffs.id"), nullable=True)
+    excerpt = Column(Text, nullable=True)
+    is_read = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)

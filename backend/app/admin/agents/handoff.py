@@ -1,9 +1,8 @@
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
-from app.models.db import Handoff, StaffProfile, Message, UserChannelIdentity
+from app.models.db import Handoff, StaffProfile, Message, UserChannelIdentity, Notification, StaffSettings
 from app.services.email_service import send_handoff_email
-from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage
 
 from app.core.config import settings
@@ -35,7 +34,6 @@ def _assign_staff(originating_agent: str | None, db: Session) -> StaffProfile | 
     def _pick_least_busy(candidates: list[StaffProfile]) -> StaffProfile | None:
         if not candidates:
             return None
-        # For each candidate, count their currently active (unresolved) handoffs
         scored = []
         for staff in candidates:
             active_count = (
@@ -44,23 +42,36 @@ def _assign_staff(originating_agent: str | None, db: Session) -> StaffProfile | 
                 .count()
             )
             scored.append((active_count, staff))
-        scored.sort(key=lambda x: x[0])  # fewest active cases first
+        scored.sort(key=lambda x: x[0])
         return scored[0][1]
 
-    # First, try staff matching the specific specialty
+    def _auto_assign_enabled(candidates: list[StaffProfile]) -> list[StaffProfile]:
+        # Only consider staff who've opted into auto-assignment. Someone who's
+        # never visited Settings has no row yet — treat that as "enabled",
+        # matching StaffSettings' own column default.
+        enabled = []
+        for staff in candidates:
+            settings_row = (
+                db.query(StaffSettings)
+                .filter(StaffSettings.user_id == staff.user_id)
+                .first()
+            )
+            if settings_row is None or settings_row.auto_assign_cases:
+                enabled.append(staff)
+        return enabled
+
     if originating_agent:
         specialty_matches = (
             db.query(StaffProfile)
             .filter(StaffProfile.specialty == originating_agent, StaffProfile.is_available == True)
             .all()
         )
-        best = _pick_least_busy(specialty_matches)
+        best = _pick_least_busy(_auto_assign_enabled(specialty_matches))
         if best:
             return best
 
-    # Fall back to any available staff, still picking the least busy
     all_available = db.query(StaffProfile).filter(StaffProfile.is_available == True).all()
-    return _pick_least_busy(all_available)
+    return _pick_least_busy(_auto_assign_enabled(all_available))
 
 def create_handoff_request(user_id: str, reason: str, originating_agent: str | None, db: Session, priority: str = "medium") -> Handoff:
     handoff = Handoff(
