@@ -171,7 +171,7 @@ export function Sidebar({
                     </span>
 
                     {item.badge !== undefined && item.badge > 0 && (
-                      <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-slate-700 text-slate-200 text-[11px] font-semibold flex items-center justify-center">
+                      <span className="min-w-5 h-5 px-1.5 rounded-full bg-slate-700 text-slate-200 text-[11px] font-semibold flex items-center justify-center">
                         {item.badge}
                       </span>
                     )}

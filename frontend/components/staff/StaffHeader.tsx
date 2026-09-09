@@ -6,7 +6,6 @@ import { Bell, LogOut, User as UserIcon } from "lucide-react";
 import {
   MyProfile,
   StaffNotification,
-  getNotifications,
   markNotificationRead,
 } from "@/services/staffProfileApi";
 import { AvailabilityToggle } from "./AvailabilityToggle";
@@ -97,7 +96,7 @@ export function StaffHeader({
           >
             <Bell size={18} />
             {unreadCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center">
                 {unreadCount}
               </span>
             )}
@@ -164,7 +163,7 @@ export function StaffHeader({
             <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center ring-1 ring-emerald-500/20 shrink-0">
               <UserIcon size={13} className="text-emerald-400" />
             </div>
-            <span className="text-sm text-slate-200 truncate max-w-[120px]">
+            <span className="text-sm text-slate-200 truncate max-w-30">
               {profile.name}
             </span>
           </div>

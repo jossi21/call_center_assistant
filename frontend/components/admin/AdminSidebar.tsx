@@ -2,7 +2,6 @@
 
 import {
   LayoutDashboard,
-  BarChart3,
   Bot,
   Languages,
   Wrench,

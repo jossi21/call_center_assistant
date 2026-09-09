@@ -22,7 +22,6 @@ import {
   MyCase,
   DashboardStats,
 } from "@/services/staffProfileApi";
-import { AvailabilityToggle } from "./AvailabilityToggle";
 import { StatCardsRow } from "./StatCard";
 import Link from "next/link";
 
@@ -126,17 +125,6 @@ export function StaffDashboard() {
 
   return (
     <div className="h-full flex flex-col p-3 sm:p-4 md:p-5 gap-4 overflow-hidden">
-      {/* Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex items-center justify-between shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-white">{profile.name}</h1>
-          <p className="text-sm text-slate-400 mt-1">
-            {profile.specialty} specialist
-          </p>
-        </div>
-        <AvailabilityToggle profile={profile} onUpdated={setProfile} />
-      </div>
-
       {/* Stat cards */}
       <div className="shrink-0">
         <StatCardsRow
