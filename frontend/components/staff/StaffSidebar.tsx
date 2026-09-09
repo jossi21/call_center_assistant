@@ -7,8 +7,6 @@ import {
   ClipboardList,
   FolderKanban,
   Bell,
-  User,
-  Settings,
 } from "lucide-react";
 
 export default function StaffSidebar({
@@ -45,29 +43,15 @@ export default function StaffSidebar({
       roles: ["staff"],
       badge: mentionsBadge,
     },
-    {
-      label: "Profile",
-      icon: User,
-      href: "/staff/profile",
-      roles: ["staff"],
-    },
-    {
-      label: "Settings",
-      icon: Settings,
-      href: "/staff/settings",
-      roles: ["staff"],
-    },
   ];
 
   return (
     <Sidebar
       navItems={STAFF_NAV_ITEMS}
       userRole="staff"
-      userName=""
-      userEmail=""
       brandName="Staff"
       brandSubtitle="Dashboard"
-      showProfileFooter={false}
+      showProfileFooter={true}
     />
   );
 }

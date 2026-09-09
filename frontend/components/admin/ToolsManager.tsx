@@ -147,15 +147,17 @@ export default function ToolsManager() {
       cell: (tool: Tool) => (
         <div className="flex justify-end">
           <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full hover:bg-slate-800 text-slate-400"
-              >
-                <MoreVertical size={16} />
-              </Button>
-            </DropdownMenuTrigger>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full hover:bg-slate-800 text-slate-400"
+                >
+                  <MoreVertical size={16} />
+                </Button>
+              }
+            />
 
             <DropdownMenuContent
               align="end"
