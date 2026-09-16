@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.current_user import require_admin
-from app.models.db import Agent
+from app.models.db import Agent, Tool
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
 
@@ -25,7 +26,25 @@ class AgentUpdate(BaseModel):
 
 @router.get("/get-agents")
 def list_agents(db: Session = Depends(get_db), _: str = Depends(require_admin)):
-    return db.query(Agent).all()
+    agents = db.query(Agent).order_by(Agent.display_name).all()
+    tool_counts = dict(
+        db.query(Tool.agent_name, func.count(Tool.id))
+        .filter(Tool.is_active == True)
+        .group_by(Tool.agent_name)
+        .all()
+    )
+    return [
+        {
+            "id": str(a.id),
+            "name": a.name,
+            "display_name": a.display_name,
+            "description": a.description,
+            "system_prompt": a.system_prompt,
+            "is_active": a.is_active,
+            "tool_count": tool_counts.get(a.name, 0),
+        }
+        for a in agents
+    ]
 
 
 @router.post("/create-agent")
@@ -69,7 +88,6 @@ def delete_agent(agent_id: str, db: Session = Depends(get_db), _: str = Depends(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
 
-    # Perform hard delete: remove the agent row from the database
     db.delete(agent)
     db.commit()
     return {"message": "Agent deleted"}

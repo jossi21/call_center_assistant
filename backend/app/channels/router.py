@@ -13,6 +13,26 @@ from app.services.chat_service import process_channel_message
 router = APIRouter(prefix="/channels", tags=["Channels"])
 
 
+@router.get("/{channel_name}/webhook")
+async def verify_channel_webhook(
+    channel_name: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    hub_mode: str = Query(None, alias="hub.mode"),
+    hub_challenge: str = Query(None, alias="hub.challenge"),
+    hub_verify_token: str = Query(None, alias="hub.verify_token"),
+):
+    channel = db.query(Channel).filter(Channel.name == channel_name, Channel.is_active == True).first()
+    if not channel:
+        raise HTTPException(status_code=404, detail="Channel not found")
+
+    expected_token = channel.config.get("verify_token")
+    if hub_mode == "subscribe" and hub_verify_token == expected_token:
+        return PlainTextResponse(content=hub_challenge)
+
+    raise HTTPException(status_code=403, detail="Verification failed")
+
+
 @router.post("/{channel_name}/webhook")
 async def channel_webhook(channel_name: str, request: Request, db: Session = Depends(get_db)):
     channel = db.query(Channel).filter(Channel.name == channel_name, Channel.is_active == True).first()
@@ -50,6 +70,9 @@ async def channel_webhook(channel_name: str, request: Request, db: Session = Dep
             return {"status": "verification"}
 
     response = process_channel_message(text, db, str(identity.user_id), channel_type=channel_name)
-    send_via_channel(type_def["outbound"], channel.config, str(sender_id), response.answer)
+    send_result = send_via_channel(type_def["outbound"], channel.config, str(sender_id), response.answer)
 
-    return {"status": "sent"}
+    if not send_result["success"]:
+        print(f"[WEBHOOK SEND FAILED] channel={channel_name} status={send_result['status_code']} body={send_result['body']}")
+
+    return {"status": "sent" if send_result["success"] else "send_failed"}
