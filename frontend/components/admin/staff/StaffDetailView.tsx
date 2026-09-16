@@ -1,4 +1,3 @@
-// components/admin/StaffDetailView.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -19,7 +18,6 @@ import {
   reassignHandoff,
   listStaff,
 } from "@/services/staffsApi";
-import { Button } from "@/components/ui/button";
 
 const STATUS_COLORS: Record<string, string> = {
   waiting_confirmation: "bg-slate-800 text-slate-400 ring-1 ring-slate-700",
@@ -57,7 +55,7 @@ export function StaffDetailView({ staffId }: { staffId: string }) {
 
   if (loading)
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-100">
         <div className="text-slate-400">Loading staff details...</div>
       </div>
     );

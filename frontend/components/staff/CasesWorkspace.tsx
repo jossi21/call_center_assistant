@@ -15,8 +15,7 @@ import { CasesFilterBar } from "./myCase/CasesFilterBar";
 import { CaseListPanel } from "./myCase/CaseListPanel";
 import { CaseDetailPanel } from "./myCase/CaseDetailPanel";
 import { CaseDetailSidebar } from "./CaseDetailSidebar";
-import { ListFilter, Tab, ReplyMode } from "../../lib/case-constants";
-import { createCaseNote } from "@/services/staffProfileApi";
+import { ListFilter, Tab } from "../../lib/case-constants";
 
 export function CasesWorkspace() {
   const [cases, setCases] = useState<MyCase[]>([]);

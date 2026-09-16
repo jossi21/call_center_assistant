@@ -15,6 +15,7 @@ export interface Agent {
   description: string;
   system_prompt: string;
   is_active: boolean;
+  tool_count: number;
 }
 
 export async function listAgents(): Promise<Agent[]> {

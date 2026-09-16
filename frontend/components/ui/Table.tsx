@@ -1,8 +1,7 @@
-// components/ui/Table.tsx
 "use client";
 
 import { ReactNode } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./card";
+import { Card, CardContent } from "./card";
 
 export interface Column<T> {
   key: string;
@@ -12,9 +11,6 @@ export interface Column<T> {
 }
 
 interface TableProps<T> {
-  title?: string;
-  description?: string;
-  headerAction?: ReactNode;
   loading?: boolean;
   columns: Column<T>[];
   data: T[];
@@ -24,9 +20,6 @@ interface TableProps<T> {
 }
 
 export function Table<T>({
-  title,
-  description,
-  headerAction,
   loading = false,
   columns,
   data,
@@ -37,7 +30,9 @@ export function Table<T>({
   if (loading) {
     return (
       <Card
-        className={`overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950 shadow-lg ${className || ""}`}
+        className={`overflow-hidden rounded-[28px] border border-[#123957] bg-[#061d31] shadow-lg ${
+          className || ""
+        }`}
       >
         <CardContent className="p-6">
           <div className="flex items-center justify-center py-20">
@@ -49,44 +44,35 @@ export function Table<T>({
   }
 
   return (
-    <Card className="overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950 shadow-lg">
-      {(title || description || headerAction) && (
-        <CardHeader className="flex flex-row items-center justify-between border-b border-slate-800 p-6">
-          <div>
-            {title && (
-              <CardTitle className="text-lg font-bold text-white">
-                {title}
-              </CardTitle>
-            )}
-            {description && (
-              <p className="mt-1 text-sm text-slate-400">{description}</p>
-            )}
-          </div>
-          {headerAction && <div>{headerAction}</div>}
-        </CardHeader>
-      )}
-
-      <CardContent className="p-0">
+    <Card
+      className={`overflow-hidden rounded-[28px] border border-[#123957] bg-[#061d31] shadow-lg ${
+        className || ""
+      }`}
+    >
+      <CardContent className="bg-[#061d31] p-0">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/60">
+              <tr className="border-b border-[#123957] bg-[#041a2b]">
                 {columns.map((column) => (
                   <th
                     key={column.key}
-                    className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-400 ${column.headerClassName || ""}`}
+                    className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-400 ${
+                      column.headerClassName || ""
+                    }`}
                   >
                     {column.header}
                   </th>
                 ))}
               </tr>
             </thead>
+
             <tbody>
               {data.length === 0 ? (
                 <tr>
                   <td
                     colSpan={columns.length}
-                    className="py-16 text-center text-sm text-slate-500 bg-slate-950"
+                    className="bg-[#061d31] py-16 text-center text-sm text-slate-500"
                   >
                     {emptyMessage}
                   </td>
@@ -95,10 +81,10 @@ export function Table<T>({
                 data.map((item) => (
                   <tr
                     key={keyExtractor(item)}
-                    className="border-b border-slate-800/70 last:border-0 bg-slate-950 hover:bg-slate-900/50 transition-colors"
+                    className="border-b border-[#123957]/70 bg-[#061d31] transition-colors last:border-0 hover:bg-[#08253b]"
                   >
                     {columns.map((column) => (
-                      <td key={column.key} className="px-6 py-4">
+                      <td key={column.key} className="px-6 py-4 align-middle">
                         {column.cell(item)}
                       </td>
                     ))}

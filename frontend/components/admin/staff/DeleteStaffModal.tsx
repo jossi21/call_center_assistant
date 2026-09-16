@@ -1,4 +1,3 @@
-// components/admin/staff/DeleteStaffModal.tsx
 "use client";
 
 import { Staff } from "@/services/staffsApi";

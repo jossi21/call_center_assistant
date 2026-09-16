@@ -1,7 +1,7 @@
 "use client";
 
-import AnalyticsDashboard from "@/components/admin/AnalyticsDashboard";
+import { AdminDashboard } from "@/components/admin/AdminDashboard";
 
-export default function AnalyticsPage() {
-  return <AnalyticsDashboard />;
+export default function AdminDashboardPage() {
+  return <AdminDashboard />;
 }

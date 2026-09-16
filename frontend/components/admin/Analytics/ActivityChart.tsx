@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { DailyStat } from "@/services/analyticsApi";
 
 type ViewMode = "daily" | "weekly" | "monthly";
@@ -9,7 +17,10 @@ type ViewMode = "daily" | "weekly" | "monthly";
 function aggregate(data: DailyStat[], mode: ViewMode) {
   if (mode === "daily") return data;
 
-  const buckets = new Map<string, { date: string; messages: number; new_users: number }>();
+  const buckets = new Map<
+    string,
+    { date: string; messages: number; new_users: number }
+  >();
 
   for (const d of data) {
     const date = new Date(d.date);
@@ -28,28 +39,40 @@ function aggregate(data: DailyStat[], mode: ViewMode) {
       existing.messages += d.messages;
       existing.new_users += d.new_users;
     } else {
-      buckets.set(key, { date: key, messages: d.messages, new_users: d.new_users });
+      buckets.set(key, {
+        date: key,
+        messages: d.messages,
+        new_users: d.new_users,
+      });
     }
   }
 
   return Array.from(buckets.values());
 }
 
-export function ActivityChart({ data }: { data: DailyStat[] }) {
+export function ActivityChart({
+  data,
+  title = "Activity Over Time",
+}: {
+  data: DailyStat[];
+  title?: string;
+}) {
   const [mode, setMode] = useState<ViewMode>("daily");
   const chartData = aggregate(data, mode);
 
   return (
     <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-white">Activity Over Time</h2>
+        <h2 className="text-sm font-semibold text-white">{title}</h2>
         <div className="flex gap-1 bg-slate-900 rounded-lg p-1">
           {(["daily", "weekly", "monthly"] as ViewMode[]).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
               className={`text-xs px-3 py-1.5 rounded-md capitalize transition ${
-                mode === m ? "bg-emerald-500 text-white" : "text-slate-400 hover:text-white"
+                mode === m
+                  ? "bg-emerald-500 text-white"
+                  : "text-slate-400 hover:text-white"
               }`}
             >
               {m}
@@ -64,11 +87,29 @@ export function ActivityChart({ data }: { data: DailyStat[] }) {
           <XAxis dataKey="date" stroke="#64748b" fontSize={11} />
           <YAxis stroke="#64748b" fontSize={11} allowDecimals={false} />
           <Tooltip
-            contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
+            contentStyle={{
+              backgroundColor: "#0f172a",
+              border: "1px solid #1e293b",
+              borderRadius: 8,
+            }}
             labelStyle={{ color: "#e2e8f0" }}
           />
-          <Line type="monotone" dataKey="messages" stroke="#10b981" strokeWidth={2} name="Messages" dot={false} />
-          <Line type="monotone" dataKey="new_users" stroke="#6366f1" strokeWidth={2} name="New Users" dot={false} />
+          <Line
+            type="monotone"
+            dataKey="messages"
+            stroke="#10b981"
+            strokeWidth={2}
+            name="Messages"
+            dot={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="new_users"
+            stroke="#6366f1"
+            strokeWidth={2}
+            name="New Users"
+            dot={false}
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>
