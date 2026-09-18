@@ -436,6 +436,19 @@ def _handle_tool_call(response, tools: list[Tool], user_id: str, db: Session, ag
             text = _generate_in_language(f"That language isn't supported yet. Supported languages: {supported}.", language_instruction)
             return text, agent_display_name
 
+    if tool.action_type == "present_list":
+        title = tool_args.get("title", "Options")
+        items = tool_args.get("items", [])
+        structured_payload = {"title": title, "items": items}
+
+        fallback_lines = [f"**{title}**", ""]
+        for item in items:
+            fallback_lines.append(f"- **{item.get('title', '')}** — {item.get('description', '')}")
+        fallback_text = "\n".join(fallback_lines)
+
+        _log_action(user_id, tool.name, tool_args, "success", db)
+        return fallback_text, agent_display_name, structured_payload
+
     if tool.risk_tier == "safe":
         exec_result = execute_tool(tool.action_type, tool.action_config, tool_args, user_id, db)
         _log_action(user_id, tool.name, tool_args, "success" if exec_result.get("success") else "failed", db)

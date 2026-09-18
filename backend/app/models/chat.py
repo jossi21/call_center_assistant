@@ -9,3 +9,4 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     agent: str
+    structured: dict | None = None

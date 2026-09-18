@@ -87,8 +87,10 @@ class Message(Base):
     content = Column(Text, nullable=False)
     agent_name = Column(String(50), nullable=True)       
     is_staff = Column(Boolean, default=False, nullable=False)  
-    response_time_ms = Column(Integer, nullable=True)    
+    response_time_ms = Column(Integer, nullable=True)
+    structured_payload = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), default=utcnow)
+
 
     user = relationship("User", back_populates="messages")
     

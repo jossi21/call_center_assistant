@@ -11,6 +11,12 @@ CHANNEL_TYPES = {
             "username_path": "message.from.username",
             "display_name_path": "message.from.first_name",
         },
+        # NEW — a tapped inline button arrives as a callback_query, a structurally
+        # different update. Tried only if the primary paths above find nothing.
+        "callback_map": {
+            "sender_id_path": "callback_query.message.chat.id",
+            "text_path": "callback_query.data",
+        },
         "outbound": {
             "url_template": "https://api.telegram.org/bot{bot_token}/sendMessage",
             "method": "POST",
@@ -34,15 +40,19 @@ CHANNEL_TYPES = {
         "text_path": "entry.0.changes.0.value.messages.0.text.body",
         "display_name_path": "entry.0.changes.0.value.contacts.0.profile.name", 
     },
-    "outbound": {
-        "url_template": "https://graph.facebook.com/v18.0/{phone_number_id}/messages",
-        "method": "POST",
-        "headers_template": {"Authorization": "Bearer {access_token}"},
-        "body_template": {
-            "messaging_product": "whatsapp",
-            "to": "{sender_id}",
-            "text": {"body": "{message}"},
+    # NEW — a tapped list row arrives with interactive.list_reply instead of
+        # text.body. Same sender_id_path, different text source.
+        "interactive_text_path": "entry.0.changes.0.value.messages.0.interactive.list_reply.title",
+        "outbound": {
+            "url_template": "https://graph.facebook.com/v18.0/{phone_number_id}/messages",
+            "method": "POST",
+            "headers_template": {"Authorization": "Bearer {access_token}"},
+            "body_template": {
+                "messaging_product": "whatsapp",
+                "to": "{sender_id}",
+                "text": {"body": "{message}"},
+            },
         },
-    },
+        "supports_structured": True,
 },
 }

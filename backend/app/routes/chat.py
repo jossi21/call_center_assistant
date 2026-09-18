@@ -1,6 +1,7 @@
 import json
 import time
 import uuid
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, timezone
 from fastapi import Query
@@ -8,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.chat import ChatRequest, ChatResponse
 from app.models.db import Message
 from app.services.chat_service import process_chat, process_chat_stream, process_chat_continue_stream
@@ -157,3 +159,29 @@ def get_new_messages(
             for m in messages
         ]
     }
+
+
+
+GROQ_TTS_URL = "https://api.groq.com/openai/v1/audio/speech"
+
+class SpeakRequest(BaseModel):
+    text: str
+    voice: str = "troy"  # Orpheus voices: troy, hannah, austin, and others — pick what fits your brand
+
+@router.post("/voice/speak")
+async def speak(request: SpeakRequest, user_id: str = Depends(get_current_user_id)):
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            GROQ_TTS_URL,
+            headers={"Authorization": f"Bearer {settings.groq_api_key}"},
+            json={
+                "model": "canopylabs/orpheus-v1-english",
+                "input": request.text[:200],  # Orpheus caps input around 200 chars per request
+                "voice": request.voice,
+                "response_format": "wav",
+            },
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"TTS provider error: {resp.text}")
+
+    return StreamingResponse(iter([resp.content]), media_type="audio/wav")
