@@ -175,9 +175,7 @@ export function AdminDashboard() {
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-2 shrink-0">
         <div>
-          <h1 className="text-lg font-bold text-white">
-            Good morning, Admin 👋
-          </h1>
+          <h1 className="text-lg font-bold text-white">Welcome Back, Admin</h1>
           <p className="text-xs text-slate-400 mt-0.5">
             Here&apos;s what&apos;s happening with your AI call center today.
           </p>

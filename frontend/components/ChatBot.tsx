@@ -1,9 +1,39 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useChat } from "@/hooks/useChat";
 import MessageBubble from "@/components/MessageBubble";
 import MarkdownContent from "@/components/MarkdownContent";
+import { Mic, Square } from "lucide-react";
+
+// Minimal typing for the Web Speech API — not in standard TS lib.dom yet.
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  0: { transcript: string };
+}
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: SpeechRecognitionResult[];
+}
+interface SpeechRecognitionInstance extends EventTarget {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start: () => void;
+  stop: () => void;
+  onresult: ((e: SpeechRecognitionEvent) => void) | null;
+  onerror: ((e: Event) => void) | null;
+  onend: (() => void) | null;
+}
+
+function getSpeechRecognition(): (new () => SpeechRecognitionInstance) | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: new () => SpeechRecognitionInstance;
+    webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
+  };
+  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
+}
 
 export default function ChatBot() {
   const {
@@ -21,10 +51,21 @@ export default function ChatBot() {
     continueMessage,
     prefillValue,
     clearPrefill,
+    markNextInputAsVoice,
   } = useChat();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setVoiceSupported(!!getSpeechRecognition());
+    });
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({
@@ -39,6 +80,62 @@ export default function ChatBot() {
       clearPrefill();
     }
   }, [prefillValue, clearPrefill]);
+
+  function sendCurrentInput() {
+    const input = inputRef.current;
+    if (input && input.value.trim()) {
+      chat(input.value);
+      input.value = "";
+    }
+  }
+
+  function toggleRecording() {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const SpeechRecognitionCtor = getSpeechRecognition();
+    if (!SpeechRecognitionCtor) {
+      setVoiceSupported(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = "en-US"; // TODO: wire to user's preferred_language once multi-language STT is added
+    recognition.continuous = false;
+    recognition.interimResults = true;
+
+    recognition.onresult = (e: SpeechRecognitionEvent) => {
+      let transcript = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        transcript += e.results[i][0].transcript;
+      }
+      if (inputRef.current) {
+        inputRef.current.value = transcript;
+      }
+    };
+
+    recognition.onerror = () => {
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+      markNextInputAsVoice();
+      sendCurrentInput();
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsRecording(true);
+  }
+
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, []);
 
   return (
     <div className="fixed bottom-6 right-6 w-95 h-160 bg-white rounded-[28px] shadow-[0_8px_40px_rgba(0,0,0,0.12)] border border-zinc-100 flex flex-col overflow-hidden">
@@ -132,6 +229,15 @@ export default function ChatBot() {
 
       {/* Input */}
       <div className="p-3 border-t border-zinc-100 bg-white">
+        {isRecording && (
+          <div className="mb-2 px-2 flex items-center gap-2 text-xs text-indigo-500">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
+            </span>
+            Listening…
+          </div>
+        )}
         <div className="flex gap-2">
           <input
             id="chat-input"
@@ -151,14 +257,34 @@ export default function ChatBot() {
             disabled={loading}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                const input = inputRef.current;
-                if (input && input.value.trim()) {
-                  chat(input.value);
-                  input.value = "";
-                }
+                sendCurrentInput();
               }
             }}
           />
+
+          {voiceSupported && (
+            <button
+              onClick={toggleRecording}
+              disabled={loading}
+              title={isRecording ? "Stop recording" : "Speak"}
+              className={`
+                w-10
+                h-10
+                rounded-full
+                flex
+                items-center
+                justify-center
+                transition
+                ${
+                  isRecording
+                    ? "bg-red-500 text-white hover:bg-red-600"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }
+              `}
+            >
+              {isRecording ? <Square size={14} /> : <Mic size={16} />}
+            </button>
+          )}
 
           {canStop ? (
             <button
@@ -182,13 +308,7 @@ export default function ChatBot() {
           ) : (
             <button
               disabled={loading}
-              onClick={() => {
-                const input = inputRef.current;
-                if (input && input.value.trim()) {
-                  chat(input.value);
-                  input.value = "";
-                }
-              }}
+              onClick={sendCurrentInput}
               className="
                 w-10
                 h-10

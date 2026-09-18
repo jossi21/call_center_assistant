@@ -95,6 +95,7 @@ export function useChat() {
   // for web-channel handoffs, which never come back through the SSE stream.
   const pollAfterRef = useRef<string>(new Date().toISOString());
   const seenIdsRef = useRef<Set<string>>(new Set());
+  const lastInputWasVoiceRef = useRef(false);
 
   const { stage, messages } = session;
 
@@ -203,6 +204,32 @@ export function useChat() {
     });
   }
 
+  async function speakText(text: string) {
+    try {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${API_URL}/voice/speak`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.play();
+      audio.onended = () => URL.revokeObjectURL(url);
+    } catch {
+      // best-effort — voice playback failing shouldn't block the text response
+    }
+  }
+
+  function markNextInputAsVoice() {
+    lastInputWasVoiceRef.current = true;
+  }
+
   async function streamAuthenticatedMessage(text: string) {
     setStreamStage("thinking");
     setStreamingText("");
@@ -227,6 +254,7 @@ export function useChat() {
           streamIdRef.current = null;
 
           if (!data.answer) {
+            lastInputWasVoiceRef.current = false;
             return;
           }
 
@@ -245,6 +273,11 @@ export function useChat() {
               },
             ],
           }));
+
+          if (lastInputWasVoiceRef.current) {
+            speakText(data.answer);
+          }
+          lastInputWasVoiceRef.current = false;
         },
       },
     );
@@ -460,6 +493,7 @@ export function useChat() {
     setPrefillValue(null);
     streamIdRef.current = null;
     seenIdsRef.current = new Set();
+    lastInputWasVoiceRef.current = false;
     pollAfterRef.current = new Date().toISOString();
     setSession({
       stage: "awaiting_phone",
@@ -482,5 +516,6 @@ export function useChat() {
     continueMessage,
     prefillValue,
     clearPrefill,
+    markNextInputAsVoice,
   };
 }
