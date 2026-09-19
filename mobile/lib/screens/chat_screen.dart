@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:markdown/markdown.dart' as md;
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:audioplayers/audioplayers.dart';
 import '../models/chat_message.dart';
@@ -447,36 +446,34 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildMarkdown(String content) {
-    return MarkdownBody(
-      data: content,
-      selectable: true,
-      extensionSet: md.ExtensionSet.gitHubFlavored,
-      builders: {'table': TableCardBuilder()},
-      styleSheet: MarkdownStyleSheet(
-        p: const TextStyle(color: Colors.black87, fontSize: 14, height: 1.4),
-        strong: const TextStyle(
-            color: Colors.black87, fontSize: 14, fontWeight: FontWeight.bold),
-        em: const TextStyle(
-            color: Colors.black87, fontSize: 14, fontStyle: FontStyle.italic),
-        listBullet: const TextStyle(color: Colors.black87, fontSize: 14),
-        h1: const TextStyle(
-            color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold),
-        h2: const TextStyle(
-            color: Colors.black87, fontSize: 17, fontWeight: FontWeight.bold),
-        h3: const TextStyle(
-            color: Colors.black87, fontSize: 15, fontWeight: FontWeight.bold),
-        code: TextStyle(
-            backgroundColor: Colors.grey[300],
-            color: const Color(0xFF4F46E5),
-            fontSize: 12),
-        blockquote:
-            const TextStyle(color: Colors.black54, fontStyle: FontStyle.italic),
-        blockquoteDecoration: const BoxDecoration(
-          border: Border(left: BorderSide(color: Color(0xFF6366F1), width: 3)),
-        ),
-        a: const TextStyle(
-            color: Color(0xFF4F46E5), decoration: TextDecoration.underline),
+    final styleSheet = MarkdownStyleSheet(
+      p: const TextStyle(color: Colors.black87, fontSize: 14, height: 1.4),
+      strong: const TextStyle(
+          color: Colors.black87, fontSize: 14, fontWeight: FontWeight.bold),
+      em: const TextStyle(
+          color: Colors.black87, fontSize: 14, fontStyle: FontStyle.italic),
+      listBullet: const TextStyle(color: Colors.black87, fontSize: 14),
+      h1: const TextStyle(
+          color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold),
+      h2: const TextStyle(
+          color: Colors.black87, fontSize: 17, fontWeight: FontWeight.bold),
+      h3: const TextStyle(
+          color: Colors.black87, fontSize: 15, fontWeight: FontWeight.bold),
+      code: TextStyle(
+          backgroundColor: Colors.grey[300],
+          color: const Color(0xFF4F46E5),
+          fontSize: 12),
+      blockquote:
+          const TextStyle(color: Colors.black54, fontStyle: FontStyle.italic),
+      blockquoteDecoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: Color(0xFF6366F1), width: 3)),
       ),
+      a: const TextStyle(
+          color: Color(0xFF4F46E5), decoration: TextDecoration.underline),
+    );
+    return MarkdownWithCards(
+      content: content,
+      styleSheet: styleSheet,
     );
   }
 

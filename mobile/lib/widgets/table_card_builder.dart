@@ -1,39 +1,70 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:markdown/markdown.dart' as md;
 
-class TableCardBuilder extends MarkdownElementBuilder {
-  @override
-  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
-    if (element.tag != 'table') return null;
+class MarkdownWithCards extends StatelessWidget {
+  final String content;
+  final MarkdownStyleSheet styleSheet;
 
-    List<String> headers = [];
-    List<List<String>> rows = [];
+  const MarkdownWithCards({
+    super.key,
+    required this.content,
+    required this.styleSheet,
+  });
 
-    for (final child in element.children ?? []) {
-      if (child is! md.Element) continue;
+  List<String> _cells(String line) {
+    var value = line.trim();
+    if (value.startsWith('|')) value = value.substring(1);
+    if (value.endsWith('|')) value = value.substring(0, value.length - 1);
+    return value.split('|').map((cell) => cell.trim()).toList();
+  }
 
-      if (child.tag == 'thead') {
-        final tr = child.children?.whereType<md.Element>().firstOrNull;
-        if (tr != null) {
-          headers = (tr.children ?? [])
-              .whereType<md.Element>()
-              .map((th) => th.textContent)
-              .toList();
-        }
+  bool _isTableRow(String line) => line.trim().contains('|');
+
+  bool _isSeparator(String line) =>
+      _isTableRow(line) &&
+      _cells(line).every((cell) => RegExp(r'^:?-{3,}:?$').hasMatch(cell));
+
+  List<Widget> _buildBlocks(BuildContext context) {
+    final lines = content.split('\n');
+    final blocks = <Widget>[];
+    var prose = <String>[];
+    var index = 0;
+
+    void flushProse() {
+      final text = prose.join('\n').trim();
+      if (text.isNotEmpty) {
+        blocks.add(MarkdownBody(
+          data: text,
+          selectable: true,
+          styleSheet: styleSheet,
+        ));
       }
-
-      if (child.tag == 'tbody') {
-        for (final tr in (child.children ?? []).whereType<md.Element>()) {
-          final cells = (tr.children ?? [])
-              .whereType<md.Element>()
-              .map((td) => td.textContent)
-              .toList();
-          rows.add(cells);
-        }
-      }
+      prose = [];
     }
 
+    while (index < lines.length) {
+      if (index + 1 < lines.length &&
+          _isTableRow(lines[index]) &&
+          _isSeparator(lines[index + 1])) {
+        flushProse();
+        final headers = _cells(lines[index]);
+        final rows = <List<String>>[];
+        index += 2;
+        while (index < lines.length && _isTableRow(lines[index])) {
+          rows.add(_cells(lines[index]));
+          index++;
+        }
+        blocks.add(_cards(headers, rows));
+        continue;
+      }
+      prose.add(lines[index]);
+      index++;
+    }
+    flushProse();
+    return blocks;
+  }
+
+  Widget _cards(List<String> headers, List<List<String>> rows) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: rows.map((cells) {
@@ -46,9 +77,10 @@ class TableCardBuilder extends MarkdownElementBuilder {
             border: Border.all(color: const Color(0xFFE4E4E7)),
             boxShadow: const [
               BoxShadow(
-                  color: Color(0x0D000000),
-                  blurRadius: 4,
-                  offset: Offset(0, 1)),
+                color: Color(0x0D000000),
+                blurRadius: 4,
+                offset: Offset(0, 1),
+              ),
             ],
           ),
           child: Column(
@@ -58,7 +90,7 @@ class TableCardBuilder extends MarkdownElementBuilder {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
-                    cells[0],
+                    cells.first,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
@@ -66,11 +98,8 @@ class TableCardBuilder extends MarkdownElementBuilder {
                     ),
                   ),
                 ),
-              ...List.generate(cells.length - 1, (i) {
-                final cellIndex = i + 1;
-                final label =
-                    cellIndex < headers.length ? headers[cellIndex] : '';
-                final value = cells[cellIndex];
+              ...List.generate(cells.length - 1, (offset) {
+                final cellIndex = offset + 1;
                 return Container(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   decoration: const BoxDecoration(
@@ -82,14 +111,16 @@ class TableCardBuilder extends MarkdownElementBuilder {
                       SizedBox(
                         width: 90,
                         child: Text(
-                          label,
+                          cellIndex < headers.length ? headers[cellIndex] : '',
                           style: const TextStyle(
-                              fontSize: 11, color: Color(0xFFA1A1AA)),
+                            fontSize: 11,
+                            color: Color(0xFFA1A1AA),
+                          ),
                         ),
                       ),
                       Expanded(
                         child: Text(
-                          value,
+                          cells[cellIndex],
                           textAlign: TextAlign.right,
                           style: const TextStyle(
                             fontSize: 12,
@@ -108,4 +139,10 @@ class TableCardBuilder extends MarkdownElementBuilder {
       }).toList(),
     );
   }
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: _buildBlocks(context),
+      );
 }
