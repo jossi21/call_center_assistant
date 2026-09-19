@@ -54,6 +54,14 @@ class _VoiceModeScreenState extends State<VoiceModeScreen>
         if (!_active) return;
         _speechEndTimer?.cancel();
         _handlingSpeechEnd = false;
+        final errorCode = error.errorMsg.toLowerCase();
+        final isSilence = errorCode.contains('no_match') ||
+            errorCode.contains('speech_timeout') ||
+            errorCode.contains('timeout');
+        if (isSilence) {
+          _restartAfterSilence();
+          return;
+        }
         if (!mounted) return;
         setState(() {
           _state = VoiceState.error;
@@ -73,6 +81,19 @@ class _VoiceModeScreenState extends State<VoiceModeScreen>
         _statusMessage = 'Speech recognition unavailable on this device';
       });
     }
+  }
+
+  Future<void> _restartAfterSilence() async {
+    if (!_active) return;
+    if (mounted) {
+      setState(() {
+        _state = VoiceState.idle;
+        _partialText = '';
+        _statusMessage = 'Listening...';
+      });
+    }
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (_active) await _startListening();
   }
 
   void _onSpeechStatus(String status) {
