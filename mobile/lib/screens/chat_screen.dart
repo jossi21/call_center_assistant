@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:markdown/markdown.dart' as md;
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:audioplayers/audioplayers.dart';
 import '../models/chat_message.dart';
@@ -192,6 +193,24 @@ class _ChatScreenState extends State<ChatScreen> {
     Clipboard.setData(ClipboardData(text: content));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Copied'), duration: Duration(seconds: 1)),
+    );
+  }
+
+  Future<void> _pasteText() async {
+    final clipboard = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = clipboard?.text;
+    if (text == null || text.isEmpty || !mounted) return;
+
+    final selection = _inputController.selection;
+    final start = selection.isValid && selection.start >= 0
+        ? selection.start
+        : _inputController.text.length;
+    final end =
+        selection.isValid && selection.end >= start ? selection.end : start;
+    final value = _inputController.text.replaceRange(start, end, text);
+    _inputController.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: start + text.length),
     );
   }
 
@@ -431,6 +450,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return MarkdownBody(
       data: content,
       selectable: true,
+      extensionSet: md.ExtensionSet.gitHubFlavored,
       builders: {'table': TableCardBuilder()},
       styleSheet: MarkdownStyleSheet(
         p: const TextStyle(color: Colors.black87, fontSize: 14, height: 1.4),
@@ -571,6 +591,13 @@ class _ChatScreenState extends State<ChatScreen> {
                 onSubmitted: (_) => _sendMessage(),
               ),
             ),
+          ),
+          const SizedBox(width: 8),
+          _circleButton(
+            onTap: _loading ? null : _pasteText,
+            background: const Color(0xFFF4F4F5),
+            icon: const Icon(Icons.content_paste,
+                size: 18, color: Color(0xFF52525B)),
           ),
           const SizedBox(width: 8),
           _circleButton(
