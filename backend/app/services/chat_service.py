@@ -34,21 +34,24 @@ def process_channel_message(message: str, db: Session, user_id: str, channel_typ
     history.reverse()
 
     start = time.perf_counter()
-    answer, agent_used = handle_message(message, history, db, user_id)
+    result = handle_message(message, history, db, user_id)
+    answer, agent_used = result[:2]
+    structured = result[2] if len(result) > 2 else None
     elapsed_ms = int((time.perf_counter() - start) * 1000)
 
     if answer is None:
         # Paused: no AI reply to persist or send back on this channel.
-        return ChatResponse(answer="", agent=agent_used)
+        return ChatResponse(answer="", agent=agent_used, structured=structured)
 
     assistant_message = Message(
         user_id=user_id, channel_type=channel_type, role="assistant",
         content=answer, agent_name=agent_used, response_time_ms=elapsed_ms,
+        structured_payload=structured,
     )
     db.add(assistant_message)
     db.commit()
 
-    return ChatResponse(answer=answer, agent=agent_used)
+    return ChatResponse(answer=answer, agent=agent_used, structured=structured)
 
 def process_chat(request: ChatRequest, db: Session, user_id: str) -> ChatResponse:
     return process_channel_message(request.message, db, user_id, channel_type="web")
@@ -106,12 +109,14 @@ def process_chat_stream(
 
     def worker():
         start = time.perf_counter()
-        answer, agent_used = handle_message_stream(
+        tool_result = handle_message_stream(
             request.message, history, db, user_id,
             on_stage=on_stage, on_token=on_token, stop_event=stop_event,
         )
+        answer, agent_used = tool_result[:2]
         result["answer"] = answer
         result["agent"] = agent_used
+        result["structured"] = tool_result[2] if len(tool_result) > 2 else None
         result["elapsed_ms"] = int((time.perf_counter() - start) * 1000)
         event_queue.put(("done", None))
 
@@ -157,11 +162,13 @@ def process_chat_stream(
             "agent": agent_used,
             "interrupted": False,
             "message_id": None,
+            "structured": result.get("structured"),
         }
         else:
             assistant_message = Message(
                 user_id=user_id, channel_type="web", role="assistant",
                 content=answer, agent_name=agent_used, response_time_ms=result["elapsed_ms"],
+                structured_payload=result.get("structured"),
             )
             db.add(assistant_message)
             db.commit()
@@ -171,6 +178,7 @@ def process_chat_stream(
                 "agent": agent_used,
                 "interrupted": interrupted,
                 "message_id": assistant_message.id,
+                "structured": result.get("structured"),
             }
     finally:
         stream_registry.unregister(stream_id)

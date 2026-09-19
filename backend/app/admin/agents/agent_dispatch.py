@@ -458,6 +458,13 @@ def _handle_tool_call(response, tools: list[Tool], user_id: str, db: Session, ag
             text = _generate_in_language("Something went wrong completing that. Please try again.", fresh_language_instruction)
             return text, agent_display_name
 
+        if tool.action_type == "open_url":
+            url = exec_result["url"]
+            return f"Opening {url}", agent_display_name, {
+                "type": "open_url",
+                "url": url,
+            }
+
         result_summary = str(exec_result.get("body", exec_result))[:1500]  # cap length
         prompt = f"""The following data was just retrieved: {result_summary}
 

@@ -13,7 +13,7 @@ class ToolCreate(BaseModel):
     description: str
     parameters_schema: dict
     risk_tier: str  # safe, reversible, destructive
-    action_type: str  # update_user_field, write_user_memory, call_webhook
+    action_type: str  # update_user_field, write_user_memory, call_webhook, open_url
     action_config: dict
     agent_name: str | None = None
 
@@ -51,7 +51,7 @@ def create_tool(body: ToolCreate, db: Session = Depends(get_db), _: str = Depend
     if body.risk_tier not in ("safe", "reversible", "destructive"):
         raise HTTPException(status_code=400, detail="risk_tier must be safe, reversible, or destructive")
 
-    if body.action_type not in ("update_user_field", "write_user_memory", "call_webhook"):
+    if body.action_type not in ("update_user_field", "write_user_memory", "call_webhook", "open_url"):
         raise HTTPException(status_code=400, detail="Invalid action_type")
 
     tool = Tool(**body.model_dump(), is_active=True)

@@ -161,6 +161,26 @@ def get_new_messages(
     }
 
 
+@router.get("/chat/history")
+def get_chat_history(db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    messages = (
+        db.query(Message)
+        .filter(Message.user_id == user_id)
+        .order_by(Message.created_at.asc())
+        .all()
+    )
+    return {
+        "messages": [
+            {
+                "id": str(m.id),
+                "role": m.role,
+                "content": m.content,
+                "agent": m.agent_name,
+                "created_at": m.created_at.isoformat(),
+            }
+            for m in messages
+        ]
+    }
 
 GROQ_TTS_URL = "https://api.groq.com/openai/v1/audio/speech"
 

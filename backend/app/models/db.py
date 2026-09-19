@@ -144,7 +144,7 @@ class Tool(Base):
     description = Column(Text, nullable=False)
     parameters_schema = Column(JSONB, nullable=False)
     risk_tier = Column(String(20), nullable=False)  # safe, reversible, destructive
-    action_type = Column(String(50), nullable=False)  # write_user_memory, update_user_field, call_webhook
+    action_type = Column(String(50), nullable=False)  # write_user_memory, update_user_field, call_webhook, open_url
     action_config = Column(JSONB, nullable=False)
     agent_name = Column(String(50), nullable=True)  # which agent this tool belongs to; null = available to all
     is_active = Column(Boolean, default=True, nullable=False)

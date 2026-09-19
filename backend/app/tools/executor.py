@@ -1,4 +1,5 @@
 import requests
+from urllib.parse import urlparse
 from sqlalchemy.orm import Session
 
 from app.models.db import User, UserMemory
@@ -11,8 +12,18 @@ def execute_tool(action_type: str, action_config: dict, tool_args: dict, user_id
         return _write_user_memory(action_config, tool_args, user_id, db)
     elif action_type == "call_webhook":
         return _call_webhook(action_config, tool_args, user_id)
+    elif action_type == "open_url":
+        return _open_url(action_config, tool_args)
     else:
         return {"success": False, "error": f"Unknown action_type: {action_type}"}
+
+
+def _open_url(action_config: dict, tool_args: dict) -> dict:
+    url = action_config.get("url", "").format(**tool_args)
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return {"success": False, "error": "The configured URL must use http or https."}
+    return {"success": True, "url": url}
 
 
 def _update_user_field(action_config: dict, tool_args: dict, user_id: str, db: Session) -> dict:
