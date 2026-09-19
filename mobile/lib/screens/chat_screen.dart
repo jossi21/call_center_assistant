@@ -6,6 +6,7 @@ import 'package:audioplayers/audioplayers.dart';
 import '../models/chat_message.dart';
 import '../services/auth_service.dart';
 import '../services/chat_service.dart';
+import 'login_screen.dart';
 import 'voice_mode_screen.dart';
 import '../widgets/table_card_builder.dart';
 
@@ -20,6 +21,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _authService = AuthService();
   late final ChatService _chatService;
   final List<ChatMessage> _messages = [];
+  final ScrollController _scrollController = ScrollController();
   final TextEditingController _inputController = TextEditingController();
   bool _loading = false;
   String? _streamStage;
@@ -52,6 +54,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ));
         }
       });
+      _scrollToBottom();
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -60,13 +63,55 @@ class _ChatScreenState extends State<ChatScreen> {
           content: 'Hi! Please enter your phone number to get started.',
         ));
       });
+      _scrollToBottom();
     }
 
     if (!mounted) return;
     _chatService.startPolling((newMessages) {
       if (!mounted) return;
       setState(() => _messages.addAll(newMessages));
+      _scrollToBottom();
     });
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  Future<void> _logout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Log out?'),
+        content:
+            const Text('You will need to verify your phone again to log in.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+    if (shouldLogout != true || !mounted) return;
+
+    await _authService.logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
   }
 
   void _stopStreaming() {
@@ -81,6 +126,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _chatService.stopPolling();
     _speech.stop();
     _audioPlayer.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -94,6 +140,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _streamStage = 'thinking';
       _streamingText = '';
     });
+    _scrollToBottom();
     _inputController.clear();
 
     await _chatService.streamMessage(
@@ -118,6 +165,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ));
           }
         });
+        _scrollToBottom();
       },
     );
   }
@@ -133,6 +181,7 @@ class _ChatScreenState extends State<ChatScreen> {
               _messages.add(userMsg);
               _messages.add(assistantMsg);
             });
+            _scrollToBottom();
           },
         ),
       ),
@@ -199,6 +248,7 @@ class _ChatScreenState extends State<ChatScreen> {
             interrupted: data['interrupted'],
           ));
         });
+        _scrollToBottom();
       },
     );
   }
@@ -220,6 +270,7 @@ class _ChatScreenState extends State<ChatScreen> {
             );
           }
         });
+        _scrollToBottom();
       },
       onFinal: (data) {
         setState(() {
@@ -235,6 +286,7 @@ class _ChatScreenState extends State<ChatScreen> {
             );
           }
         });
+        _scrollToBottom();
       },
     );
   }
@@ -423,12 +475,22 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(title: const Text('Support Assistant')),
+      appBar: AppBar(
+        title: const Text('Support Assistant'),
+        actions: [
+          IconButton(
+            tooltip: 'Log out',
+            onPressed: _logout,
+            icon: const Icon(Icons.logout),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
               child: ListView.builder(
+                controller: _scrollController,
                 padding: const EdgeInsets.all(16),
                 itemCount: _messages.length + (_streamStage != null ? 1 : 0),
                 itemBuilder: (context, index) {
