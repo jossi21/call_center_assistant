@@ -19,6 +19,41 @@ class ChatService {
 
   ChatService(this.authService);
 
+  Future<List<ChatMessage>> loadChatHistory() async {
+    final token = await authService.getToken();
+    final res = await http.get(
+      Uri.parse('$apiUrl/chat/history'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load chat history (${res.statusCode})');
+    }
+
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final rawMessages = (data['messages'] as List<dynamic>? ?? []);
+    final messages = rawMessages.map((raw) {
+      final message = raw as Map<String, dynamic>;
+      final id = message['id']?.toString();
+      if (id != null) _seenIds.add(id);
+
+      return ChatMessage(
+        role: message['role'] as String? ?? 'assistant',
+        content: message['content'] as String? ?? '',
+        agent: message['agent'] as String?,
+        id: id,
+      );
+    }).toList();
+
+    if (rawMessages.isNotEmpty) {
+      final last = rawMessages.last as Map<String, dynamic>;
+      final createdAt = last['created_at'] as String?;
+      if (createdAt != null) _pollAfter = createdAt;
+    }
+
+    return messages;
+  }
+
   Future<void> stopStream(String streamId) async {
     try {
       final token = await authService.getToken();

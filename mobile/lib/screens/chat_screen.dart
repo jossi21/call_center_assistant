@@ -6,6 +6,7 @@ import 'package:audioplayers/audioplayers.dart';
 import '../models/chat_message.dart';
 import '../services/auth_service.dart';
 import '../services/chat_service.dart';
+import 'voice_mode_screen.dart';
 import '../widgets/table_card_builder.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -30,61 +31,42 @@ class _ChatScreenState extends State<ChatScreen> {
 
   final stt.SpeechToText _speech = stt.SpeechToText();
   final AudioPlayer _audioPlayer = AudioPlayer();
-  bool _speechAvailable = false;
-  bool _isListening = false;
-  bool _lastInputWasVoice = false;
 
   @override
   void initState() {
     super.initState();
     _chatService = ChatService(_authService);
-    _messages.add(ChatMessage(
-      role: 'assistant',
-      content: 'Hi! Please enter your phone number to get started.',
-    ));
+    _initializeChat();
+  }
+
+  Future<void> _initializeChat() async {
+    try {
+      final history = await _chatService.loadChatHistory();
+      if (!mounted) return;
+      setState(() {
+        _messages.addAll(history);
+        if (_messages.isEmpty) {
+          _messages.add(ChatMessage(
+            role: 'assistant',
+            content: 'Hi! Please enter your phone number to get started.',
+          ));
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(ChatMessage(
+          role: 'assistant',
+          content: 'Hi! Please enter your phone number to get started.',
+        ));
+      });
+    }
+
+    if (!mounted) return;
     _chatService.startPolling((newMessages) {
+      if (!mounted) return;
       setState(() => _messages.addAll(newMessages));
     });
-    _initSpeech();
-  }
-
-  Future<void> _initSpeech() async {
-    final available = await _speech.initialize(
-      onStatus: (status) {
-        if (status == 'done' || status == 'notListening') {
-          _onSpeechEnd();
-        }
-      },
-      onError: (error) => setState(() => _isListening = false),
-    );
-    setState(() => _speechAvailable = available);
-  }
-
-  void _toggleListening() async {
-    if (_isListening) {
-      _speech.stop();
-      return;
-    }
-    setState(() {
-      _isListening = true;
-      _inputController.clear();
-    });
-    await _speech.listen(
-      onResult: (result) {
-        setState(() => _inputController.text = result.recognizedWords);
-      },
-      listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 3),
-      localeId: 'en_US',
-    );
-  }
-
-  void _onSpeechEnd() {
-    setState(() => _isListening = false);
-    if (_inputController.text.trim().isNotEmpty) {
-      _lastInputWasVoice = true;
-      _sendMessage();
-    }
   }
 
   void _stopStreaming() {
@@ -105,9 +87,6 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _sendMessage() async {
     final text = _inputController.text.trim();
     if (text.isEmpty) return;
-
-    final wasVoice = _lastInputWasVoice;
-    _lastInputWasVoice = false;
 
     setState(() {
       _messages.add(ChatMessage(role: 'user', content: text));
@@ -137,10 +116,26 @@ class _ChatScreenState extends State<ChatScreen> {
               id: data['message_id']?.toString(),
               interrupted: data['interrupted'],
             ));
-            if (wasVoice) _chatService.speakText(answer, _audioPlayer);
           }
         });
       },
+    );
+  }
+
+  Future<void> _openVoiceMode() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => VoiceModeScreen(
+          chatService: _chatService,
+          onExchangeComplete: (userMsg, assistantMsg) {
+            setState(() {
+              _messages.add(userMsg);
+              _messages.add(assistantMsg);
+            });
+          },
+        ),
+      ),
     );
   }
 
@@ -432,14 +427,6 @@ class _ChatScreenState extends State<ChatScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            if (_isListening)
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                color: Colors.indigo.shade50,
-                child: const Center(
-                    child: Text('Listening…',
-                        style: TextStyle(color: Colors.indigo))),
-              ),
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
@@ -524,14 +511,11 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          if (_speechAvailable)
-            _circleButton(
-              onTap: _toggleListening,
-              background: _isListening ? Colors.red : const Color(0xFFF4F4F5),
-              icon: Icon(_isListening ? Icons.stop : Icons.mic,
-                  size: 18,
-                  color: _isListening ? Colors.white : const Color(0xFF52525B)),
-            ),
+          _circleButton(
+            onTap: _openVoiceMode,
+            background: const Color(0xFFF4F4F5),
+            icon: const Icon(Icons.mic, size: 18, color: Color(0xFF52525B)),
+          ),
           const SizedBox(width: 8),
           if (isStreaming)
             _circleButton(
