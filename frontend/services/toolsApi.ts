@@ -14,7 +14,11 @@ export interface Tool {
   description: string;
   parameters_schema: Record<string, unknown>;
   risk_tier: "safe" | "reversible" | "destructive";
-  action_type: "update_user_field" | "write_user_memory" | "call_webhook";
+  action_type:
+    | "update_user_field"
+    | "write_user_memory"
+    | "call_webhook"
+    | "open_url";
   action_config: Record<string, unknown>;
   agent_name: string | null;
   is_active: boolean;

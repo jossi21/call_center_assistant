@@ -1058,6 +1058,10 @@ function configToFields(
     };
   }
 
+  if (actionType === "open_url") {
+    return { url: config.url || "" };
+  }
+
   if (actionType === "update_user_field") {
     return {
       field: config.field || "",
@@ -1108,6 +1112,7 @@ function ToolFormModal({
 
   const [webhookMethod, setWebhookMethod] = useState("POST");
   const [webhookUrl, setWebhookUrl] = useState("");
+  const [openUrl, setOpenUrl] = useState("");
   const [fieldName, setFieldName] = useState("");
   const [memoryKey, setMemoryKey] = useState("");
 
@@ -1134,6 +1139,7 @@ function ToolFormModal({
 
       setWebhookMethod(fields.method || "POST");
       setWebhookUrl(fields.url || "");
+      setOpenUrl(fields.url || "");
       setFieldName(fields.field || "");
       setMemoryKey(fields.memory_key || "");
     });
@@ -1195,6 +1201,10 @@ function ToolFormModal({
         method: webhookMethod,
         url: webhookUrl,
       };
+    }
+
+    if (actionType === "open_url") {
+      actionConfig = { url: openUrl };
     }
 
     if (actionType === "update_user_field") {
@@ -1411,6 +1421,9 @@ function ToolFormModal({
             className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <option value="call_webhook">Call a real API / website</option>
+            <option value="open_url">
+              Open a website in the user&apos;s browser
+            </option>
 
             <option value="update_user_field">
               Update a user&apos;s account field
@@ -1443,6 +1456,15 @@ function ToolFormModal({
               className="flex-1 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
+        )}
+
+        {actionType === "open_url" && (
+          <input
+            placeholder="https://www.youtube.com"
+            value={openUrl}
+            onChange={(e) => setOpenUrl(e.target.value)}
+            className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
         )}
 
         {actionType === "update_user_field" && (

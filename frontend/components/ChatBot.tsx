@@ -41,6 +41,7 @@ export default function ChatBot() {
     chat,
     loading,
     resetChat,
+    initializing,
     streamStage,
     streamingText,
     canStop,
@@ -136,6 +137,14 @@ export default function ChatBot() {
       recognitionRef.current?.stop();
     };
   }, []);
+
+  if (initializing) {
+    return (
+      <div className="fixed bottom-6 right-6 w-95 h-160 bg-white rounded-[28px] shadow-[0_8px_40px_rgba(0,0,0,0.12)] border border-zinc-100 flex items-center justify-center overflow-hidden">
+        <div className="w-6 h-6 border-2 border-zinc-200 border-t-indigo-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="fixed bottom-6 right-6 w-95 h-160 bg-white rounded-[28px] shadow-[0_8px_40px_rgba(0,0,0,0.12)] border border-zinc-100 flex flex-col overflow-hidden">

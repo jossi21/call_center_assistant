@@ -99,22 +99,65 @@ export function useChat() {
 
   const { stage, messages } = session;
 
+  const [initializing, setInitializing] = useState(true);
+
   useEffect(() => {
-    queueMicrotask(() => {
+    queueMicrotask(async () => {
       const token = localStorage.getItem("access_token");
-      const phone = localStorage.getItem("phone_number");
 
       if (token) {
-        setSession({
-          stage: "authenticated",
-          messages: [
-            {
-              role: "assistant",
-              content: `Welcome back, hey ${phone}! How can I help you today?`,
-            },
-          ],
-        });
+        try {
+          const res = await fetch(`${API_URL}/chat/history`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const loaded: ChatMessage[] = data.messages.map(
+              (m: {
+                id: string;
+                role: string;
+                content: string;
+                agent: string | null;
+                created_at: string;
+              }) => ({
+                role: m.role as "user" | "assistant",
+                content: m.content,
+                agent: m.agent || undefined,
+                id: m.id,
+              }),
+            );
+
+            if (data.messages.length > 0) {
+              pollAfterRef.current =
+                data.messages[data.messages.length - 1].created_at;
+            }
+            data.messages.forEach((m: { id: string }) =>
+              seenIdsRef.current.add(m.id),
+            );
+
+            setSession({
+              stage: "authenticated",
+              messages:
+                loaded.length > 0
+                  ? loaded
+                  : [
+                      {
+                        role: "assistant",
+                        content: "Welcome back! How can I help you today?",
+                      },
+                    ],
+            });
+          } else {
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("phone_number");
+          }
+        } catch {
+          // network hiccup — fall through to the unauthenticated state below
+        }
       }
+
+      setInitializing(false);
     });
   }, []);
 
@@ -318,6 +361,7 @@ export function useChat() {
                 role: "assistant",
                 content: data.answer,
                 agent: data.agent,
+                is_staff: false,
                 id: data.message_id,
                 interrupted: data.interrupted,
               },
@@ -506,6 +550,7 @@ export function useChat() {
     chat,
     loading,
     resetChat,
+    initializing,
     streamStage,
     streamingText,
     canStop,
