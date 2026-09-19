@@ -52,9 +52,14 @@ class _VoiceModeScreenState extends State<VoiceModeScreen>
       onStatus: _onSpeechStatus,
       onError: (error) {
         if (!_active) return;
+        _speechEndTimer?.cancel();
+        _handlingSpeechEnd = false;
+        if (!mounted) return;
         setState(() {
           _state = VoiceState.error;
-          _statusMessage = 'Microphone error — tap to retry';
+          _statusMessage = error.errorMsg.isEmpty
+              ? 'Microphone error - tap to retry'
+              : 'Microphone: ${error.errorMsg}';
         });
       },
     );
@@ -72,14 +77,17 @@ class _VoiceModeScreenState extends State<VoiceModeScreen>
 
   void _onSpeechStatus(String status) {
     if (!_active) return;
-    if (status == 'done' || status == 'notListening') {
+    if (status == 'listening' && mounted) {
+      setState(() => _state = VoiceState.listening);
+    } else if ((status == 'done' || status == 'notListening') &&
+        _state == VoiceState.listening) {
       _scheduleSpeechEnd();
     }
   }
 
   void _scheduleSpeechEnd() {
     _speechEndTimer?.cancel();
-    _speechEndTimer = Timer(const Duration(milliseconds: 250), () {
+    _speechEndTimer = Timer(const Duration(milliseconds: 700), () {
       _handleSpeechEnd();
     });
   }

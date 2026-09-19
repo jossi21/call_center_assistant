@@ -51,44 +51,63 @@ class ChatService {
       ..headers['Authorization'] = 'Bearer $token'
       ..body = jsonEncode(body);
 
-    final streamedResponse = await http.Client().send(request);
-    String buffer = '';
-
-    await for (final chunk in streamedResponse.stream.transform(utf8.decoder)) {
-      buffer += chunk;
-      final parts = buffer.split('\n\n');
-      buffer = parts.removeLast(); // keep the incomplete tail
-
-      for (final part in parts) {
-        final lines = part.split('\n');
-        final eventLine = lines.firstWhere(
-          (l) => l.startsWith('event:'),
-          orElse: () => '',
+    final client = http.Client();
+    try {
+      final streamedResponse = await client.send(request);
+      if (streamedResponse.statusCode != 200) {
+        final errorBody = await streamedResponse.stream.bytesToString();
+        throw Exception(
+          'Chat request failed (${streamedResponse.statusCode}): $errorBody',
         );
-        final dataLine = lines.firstWhere(
-          (l) => l.startsWith('data:'),
-          orElse: () => '',
-        );
-        if (eventLine.isEmpty || dataLine.isEmpty) continue;
+      }
 
-        final eventType = eventLine.replaceFirst('event:', '').trim();
-        final data = jsonDecode(dataLine.replaceFirst('data:', '').trim());
+      String buffer = '';
+      var finalReceived = false;
 
-        switch (eventType) {
-          case 'start':
-            onStart?.call(data);
-            break;
-          case 'stage':
-            onStage?.call(data['stage']);
-            break;
-          case 'chunk':
-            onChunk?.call(data['text']);
-            break;
-          case 'final':
-            onFinal?.call(data);
-            break;
+      await for (final chunk
+          in streamedResponse.stream.transform(utf8.decoder)) {
+        buffer += chunk;
+        final parts = buffer.split('\n\n');
+        buffer = parts.removeLast(); // keep the incomplete tail
+
+        for (final part in parts) {
+          final lines = part.split('\n');
+          final eventLine = lines.firstWhere(
+            (l) => l.startsWith('event:'),
+            orElse: () => '',
+          );
+          final dataLine = lines.firstWhere(
+            (l) => l.startsWith('data:'),
+            orElse: () => '',
+          );
+          if (eventLine.isEmpty || dataLine.isEmpty) continue;
+
+          final eventType = eventLine.replaceFirst('event:', '').trim();
+          final data = jsonDecode(dataLine.replaceFirst('data:', '').trim());
+
+          switch (eventType) {
+            case 'start':
+              onStart?.call(data);
+              break;
+            case 'stage':
+              onStage?.call(data['stage']);
+              break;
+            case 'chunk':
+              onChunk?.call(data['text']);
+              break;
+            case 'final':
+              finalReceived = true;
+              onFinal?.call(data);
+              break;
+          }
         }
       }
+
+      if (!finalReceived) {
+        throw Exception('Chat stream ended before a final response');
+      }
+    } finally {
+      client.close();
     }
   }
 
@@ -127,7 +146,18 @@ class ChatService {
       );
       if (res.statusCode != 200) return;
 
+      final completer = Completer<void>();
+      late final StreamSubscription sub;
+      sub = audioPlayer.onPlayerComplete.listen((_) {
+        sub.cancel();
+        if (!completer.isCompleted) completer.complete();
+      });
+
       await audioPlayer.play(BytesSource(res.bodyBytes));
+      await completer.future.timeout(
+        const Duration(seconds: 60),
+        onTimeout: () => sub.cancel(),
+      );
     } catch (_) {
       // best-effort — voice playback failing shouldn't block the text response
     }
