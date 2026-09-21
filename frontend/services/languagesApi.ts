@@ -14,6 +14,8 @@ export interface Language {
   code: string;
   name: string;
   is_active: boolean;
+  tts_provider: string | null;
+  tts_voice_id: string | null;
 }
 
 export async function listLanguages(): Promise<Language[]> {
@@ -27,6 +29,8 @@ export async function listLanguages(): Promise<Language[]> {
 export async function createLanguage(data: {
   code: string;
   name: string;
+  tts_provider?: string | null;
+  tts_voice_id?: string | null;
 }): Promise<Language> {
   const res = await fetch(`${API_URL}/admin/languages/create-language`, {
     method: "POST",

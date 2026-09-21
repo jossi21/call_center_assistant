@@ -162,14 +162,15 @@ class PendingAction(Base):
     created_at = Column(DateTime(timezone=True), default=utcnow)
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
-# Language database
 class Language(Base):
     __tablename__ = "languages"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    code = Column(String(10), unique=True, nullable=False)  # 'en', 'am'
-    name = Column(String(50), nullable=False)  # 'English', 'Amharic'
+    code = Column(String(10), unique=True, nullable=False)
+    name = Column(String(50), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    tts_provider = Column(String(30), nullable=True)   # "elevenlabs" | "groq_orpheus" | "device_tts" | null
+    tts_voice_id = Column(String(100), nullable=True)  # provider-specific voice, null when tts_provider is null
 
 # staff database
 class StaffProfile(Base):

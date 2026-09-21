@@ -2,16 +2,16 @@ import json
 import time
 import uuid
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, Form
 from datetime import datetime, timezone
 from fastapi import Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.chat import ChatRequest, ChatResponse
-from app.models.db import Message
+from app.models.db import Message, Language
 from app.services.chat_service import process_chat, process_chat_stream, process_chat_continue_stream
 from app.services import stream_registry
 from app.core.database import get_db
@@ -186,11 +186,9 @@ def get_chat_history(db: Session = Depends(get_db), user_id: str = Depends(get_c
             for m in messages
         ]
     }
-GROQ_TTS_URL = "https://api.groq.com/openai/v1/audio/speech"
 
-class SpeakRequest(BaseModel):
-    text: str
-    voice: str = "troy"  # Orpheus voices: troy, hannah, austin, and others — pick what fits your brand
+
+GROQ_TTS_URL = "https://api.groq.com/openai/v1/audio/speech"
 
 
 def fix_wav_header(data: bytes) -> bytes:
@@ -243,21 +241,78 @@ def fix_wav_header(data: bytes) -> bytes:
     return bytes(data)
 
 
+class SpeakRequest(BaseModel):
+    text: str
+    language_code: str = "en"
+
+
 @router.post("/voice/speak")
-async def speak(request: SpeakRequest, user_id: str = Depends(get_current_user_id)):
+async def speak(
+    request: SpeakRequest,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    """
+    Voice output routed per-language via the `languages` table, so an admin
+    can enable/disable voice for a language without a code change. A language
+    with tts_provider = None (the default for any newly added language) has
+    no voice configured yet -- returns 204 so the frontend silently falls
+    back to text-only, instead of guessing a provider or erroring.
+    """
+    language = db.query(Language).filter(Language.code == request.language_code).first()
+
+    if not language or not language.tts_provider:
+        return Response(status_code=204)
+
+    if language.tts_provider == "groq_orpheus":
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                GROQ_TTS_URL,
+                headers={"Authorization": f"Bearer {settings.groq_api_key}"},
+                json={
+                    "model": "canopylabs/orpheus-v1-english",
+                    "input": request.text[:200],
+                    "voice": language.tts_voice_id or "troy",
+                    "response_format": "wav",
+                },
+            )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"TTS provider error: {resp.text}")
+
+        audio_bytes = fix_wav_header(resp.content)
+        return StreamingResponse(iter([audio_bytes]), media_type="audio/wav")
+
+    else:
+        # "device_tts", or any provider value with no server-side handler
+        # wired up yet -- falls back to text-only rather than guessing.
+        return Response(status_code=204)
+
+
+class TranscribeResponse(BaseModel):
+    text: str
+
+
+@router.post("/voice/transcribe", response_model=TranscribeResponse)
+async def transcribe(
+    audio: UploadFile,
+    language_code: str = Form("en"),
+    user_id: str = Depends(get_current_user_id),
+):
+    """
+    Server-side STT via Groq's Whisper endpoint, used for languages the
+    phone's on-device recognizer can't reliably handle. Whisper covers far
+    more languages uniformly than any single on-device engine, so this is
+    the default transcription path going forward rather than a fallback.
+    """
+    audio_bytes = await audio.read()
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            GROQ_TTS_URL,
+            "https://api.groq.com/openai/v1/audio/transcriptions",
             headers={"Authorization": f"Bearer {settings.groq_api_key}"},
-            json={
-                "model": "canopylabs/orpheus-v1-english",
-                "input": request.text[:200],
-                "voice": request.voice,
-                "response_format": "wav",
-            },
+            files={"file": (audio.filename, audio_bytes, audio.content_type)},
+            data={"model": "whisper-large-v3", "language": language_code},
         )
     if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"TTS provider error: {resp.text}")
+        raise HTTPException(status_code=502, detail=f"STT provider error: {resp.text}")
 
-    audio_bytes = fix_wav_header(resp.content)
-    return StreamingResponse(iter([audio_bytes]), media_type="audio/wav")
+    return TranscribeResponse(text=resp.json().get("text", ""))

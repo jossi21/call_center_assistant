@@ -844,9 +844,16 @@ function CreateLanguageModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    code: string;
+    name: string;
+    tts_provider: string | null;
+    tts_voice_id: string;
+  }>({
     code: "",
     name: "",
+    tts_provider: null,
+    tts_voice_id: "",
   });
 
   const [saving, setSaving] = useState(false);
@@ -865,6 +872,11 @@ function CreateLanguageModal({
       await createLanguage({
         code: form.code.trim().toLowerCase(),
         name: form.name.trim(),
+        tts_provider: form.tts_provider,
+        tts_voice_id:
+          form.tts_provider && form.tts_provider !== "device_tts"
+            ? form.tts_voice_id.trim() || null
+            : null,
       });
 
       onCreated();
@@ -888,12 +900,7 @@ function CreateLanguageModal({
           label="Language Code"
           placeholder="e.g. fr"
           value={form.code}
-          onChange={(value) =>
-            setForm({
-              ...form,
-              code: value,
-            })
-          }
+          onChange={(value) => setForm({ ...form, code: value })}
           hint="ISO 639-1 language code (2 characters)"
         />
 
@@ -901,13 +908,39 @@ function CreateLanguageModal({
           label="Language Name"
           placeholder="e.g. French"
           value={form.name}
-          onChange={(value) =>
-            setForm({
-              ...form,
-              name: value,
-            })
-          }
+          onChange={(value) => setForm({ ...form, name: value })}
         />
+
+        <div>
+          <label className="mb-2 block text-xs font-medium text-slate-400">
+            Voice Output (TTS)
+          </label>
+          <select
+            value={form.tts_provider ?? ""}
+            onChange={(e) =>
+              setForm({ ...form, tts_provider: e.target.value || null })
+            }
+            className="h-10 w-full rounded-xl border border-slate-800 bg-[#041a2b] px-3 text-sm text-white outline-none focus:border-emerald-500/50"
+          >
+            <option value="">None (text-only)</option>
+            <option value="elevenlabs">ElevenLabs</option>
+            <option value="groq_orpheus">Groq Orpheus</option>
+            <option value="device_tts">Device TTS (on-device)</option>
+          </select>
+          <p className="mt-1.5 text-[10px] text-slate-500">
+            Leave as &#34;None&#34; if no voice provider supports this language
+            yet — replies stay text-only.
+          </p>
+        </div>
+
+        {form.tts_provider && form.tts_provider !== "device_tts" && (
+          <FormInput
+            label="Voice ID"
+            placeholder="e.g. 21m00Tcm4TlvDq8ikWAM"
+            value={form.tts_voice_id}
+            onChange={(value) => setForm({ ...form, tts_voice_id: value })}
+          />
+        )}
 
         <div className="flex justify-end gap-2 border-t border-slate-800 pt-4">
           <Button
