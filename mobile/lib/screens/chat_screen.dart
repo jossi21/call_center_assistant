@@ -3,13 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:audioplayers/audioplayers.dart';
+import 'package:provider/provider.dart';
 
 import '../models/chat_message.dart';
 import '../services/auth_service.dart';
 import '../services/chat_service.dart';
-import 'login_screen.dart';
-import 'voice_mode_screen.dart';
+import '../services/locale_service.dart';
 import '../widgets/table_card_builder.dart';
+import 'settings_screen.dart';
+import 'voice_mode_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -63,7 +65,7 @@ class _ChatScreenState extends State<ChatScreen> {
           _messages.add(
             ChatMessage(
               role: 'assistant',
-              content: 'Hi! Please enter your phone number to get started.',
+              content: context.read<LocaleService>().t('chat.welcome_message'),
             ),
           );
         }
@@ -92,39 +94,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
       // Do not automatically scroll when new messages arrive.
     });
-  }
-
-  Future<void> _logout() async {
-    final shouldLogout = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Log out?'),
-        content: const Text(
-          'You will need to verify your phone again to log in.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Log out'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldLogout != true || !mounted) return;
-
-    await _authService.logout();
-
-    if (!mounted) return;
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
   }
 
   void _stopStreaming() {
@@ -173,18 +142,21 @@ class _ChatScreenState extends State<ChatScreen> {
       text,
       onStart: (data) {
         if (!mounted) return;
+
         setState(() {
           _currentStreamId = data['stream_id'];
         });
       },
       onStage: (stage) {
         if (!mounted) return;
+
         setState(() {
           _streamStage = stage;
         });
       },
       onChunk: (chunk) {
         if (!mounted) return;
+
         setState(() {
           _streamingText += chunk;
         });
@@ -242,10 +214,12 @@ class _ChatScreenState extends State<ChatScreen> {
   void _copyMessage(String content) {
     Clipboard.setData(ClipboardData(text: content));
 
+    final label = context.read<LocaleService>().t('chat.copied');
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Copied'),
-        duration: Duration(seconds: 1),
+      SnackBar(
+        content: Text(label),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
@@ -265,7 +239,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final end =
         selection.isValid && selection.end >= start ? selection.end : start;
 
-    final value = _inputController.text.replaceRange(start, end, text);
+    final value = _inputController.text.replaceRange(
+      start,
+      end,
+      text,
+    );
 
     _inputController.value = TextEditingValue(
       text: value,
@@ -290,15 +268,23 @@ class _ChatScreenState extends State<ChatScreen> {
       _editingId = null;
     });
 
-    await _chatService.editMessage(messageId, newContent);
+    await _chatService.editMessage(
+      messageId,
+      newContent,
+    );
 
     if (!mounted) return;
 
     setState(() {
-      final idx = _messages.indexWhere((m) => m.id == messageId);
+      final idx = _messages.indexWhere(
+        (m) => m.id == messageId,
+      );
 
       if (idx != -1) {
-        _messages.removeRange(idx, _messages.length);
+        _messages.removeRange(
+          idx,
+          _messages.length,
+        );
       }
     });
 
@@ -308,7 +294,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _regenerateMessage(String messageId) async {
     setState(() {
-      _messages.removeWhere((m) => m.id == messageId);
+      _messages.removeWhere(
+        (m) => m.id == messageId,
+      );
+
       _loading = true;
       _streamStage = 'thinking';
       _streamingText = '';
@@ -318,18 +307,21 @@ class _ChatScreenState extends State<ChatScreen> {
       messageId,
       onStart: (data) {
         if (!mounted) return;
+
         setState(() {
           _currentStreamId = data['stream_id'];
         });
       },
       onStage: (stage) {
         if (!mounted) return;
+
         setState(() {
           _streamStage = stage;
         });
       },
       onChunk: (chunk) {
         if (!mounted) return;
+
         setState(() {
           _streamingText += chunk;
         });
@@ -364,6 +356,7 @@ class _ChatScreenState extends State<ChatScreen> {
       messageId,
       onStart: (data) {
         if (!mounted) return;
+
         setState(() {
           _currentStreamId = data['stream_id'];
         });
@@ -372,7 +365,9 @@ class _ChatScreenState extends State<ChatScreen> {
         if (!mounted) return;
 
         setState(() {
-          final idx = _messages.indexWhere((m) => m.id == messageId);
+          final idx = _messages.indexWhere(
+            (m) => m.id == messageId,
+          );
 
           if (idx != -1) {
             _messages[idx] = ChatMessage(
@@ -393,7 +388,9 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() {
           _currentStreamId = null;
 
-          final idx = _messages.indexWhere((m) => m.id == messageId);
+          final idx = _messages.indexWhere(
+            (m) => m.id == messageId,
+          );
 
           if (idx != -1) {
             _messages[idx] = ChatMessage(
@@ -411,7 +408,10 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildActionRow(ChatMessage msg, bool isLast) {
+  Widget _buildActionRow(
+    ChatMessage msg,
+    bool isLast,
+  ) {
     final isUser = msg.role == 'user';
 
     final icons = <Widget>[
@@ -463,7 +463,10 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _actionIcon(IconData icon, VoidCallback onTap) {
+  Widget _actionIcon(
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(right: 10),
       child: GestureDetector(
@@ -477,7 +480,10 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage msg, bool isLast) {
+  Widget _buildMessageBubble(
+    ChatMessage msg,
+    bool isLast,
+  ) {
     final isUser = msg.role == 'user';
     final showTag = !isUser && (msg.agent != null || msg.isStaff == true);
     final isEditing = _editingId != null && _editingId == msg.id;
@@ -596,7 +602,11 @@ class _ChatScreenState extends State<ChatScreen> {
                       : _buildMarkdown(msg.content),
             ),
           ),
-          if (!isEditing) _buildActionRow(msg, isLast),
+          if (!isEditing)
+            _buildActionRow(
+              msg,
+              isLast,
+            ),
         ],
       ),
     );
@@ -669,12 +679,42 @@ class _ChatScreenState extends State<ChatScreen> {
 
   String _stripMarkdownSyntax(String text) {
     return text
-        .replaceAll(RegExp(r'\*\*(.*?)\*\*'), r'$1')
-        .replaceAll(RegExp(r'\*(.*?)\*'), r'$1')
-        .replaceAll(RegExp(r'^#{1,6}\s+', multiLine: true), '')
-        .replaceAll(RegExp(r'^\|.*\|$', multiLine: true), '')
-        .replaceAll(RegExp(r'^[-:| ]+$', multiLine: true), '')
-        .replaceAll(RegExp(r'^[-*]\s+', multiLine: true), '• ')
+        .replaceAll(
+          RegExp(r'\*\*(.*?)\*\*'),
+          r'$1',
+        )
+        .replaceAll(
+          RegExp(r'\*(.*?)\*'),
+          r'$1',
+        )
+        .replaceAll(
+          RegExp(
+            r'^#{1,6}\s+',
+            multiLine: true,
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(
+            r'^\|.*\|$',
+            multiLine: true,
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(
+            r'^[-:| ]+$',
+            multiLine: true,
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(
+            r'^[-*]\s+',
+            multiLine: true,
+          ),
+          '• ',
+        )
         .trim();
   }
 
@@ -683,12 +723,25 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text('Support Assistant'),
+        titleSpacing: 16,
+        title: Row(
+          children: [
+            Text(
+              context.watch<LocaleService>().t('chat.app_bar_title'),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            tooltip: 'Log out',
-            onPressed: _logout,
-            icon: const Icon(Icons.logout),
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -708,7 +761,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     return Align(
                       alignment: Alignment.centerLeft,
                       child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        margin: const EdgeInsets.symmetric(
+                          vertical: 4,
+                        ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 12,
@@ -719,7 +774,9 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                         child: _streamingText.isNotEmpty
                             ? Text(
-                                _stripMarkdownSyntax(_streamingText),
+                                _stripMarkdownSyntax(
+                                  _streamingText,
+                                ),
                                 style: const TextStyle(
                                   color: Colors.black87,
                                   fontSize: 14,
@@ -727,11 +784,25 @@ class _ChatScreenState extends State<ChatScreen> {
                                 ),
                               )
                             : Text(
-                                _streamStage == 'thinking'
-                                    ? 'Thinking…'
-                                    : _streamStage == 'validating'
-                                        ? 'Validating…'
-                                        : 'Generating a response…',
+                                () {
+                                  final loc = context.watch<LocaleService>();
+
+                                  if (_streamStage == 'thinking') {
+                                    return loc.t(
+                                      'chat.stage_thinking',
+                                    );
+                                  }
+
+                                  if (_streamStage == 'validating') {
+                                    return loc.t(
+                                      'chat.stage_validating',
+                                    );
+                                  }
+
+                                  return loc.t(
+                                    'chat.stage_generating',
+                                  );
+                                }(),
                                 style: const TextStyle(
                                   fontStyle: FontStyle.italic,
                                   color: Colors.black54,
@@ -745,7 +816,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       _messages[index].role == 'assistant';
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                    ),
                     child: _buildMessageBubble(
                       _messages[index],
                       isLastAssistant,
@@ -789,13 +862,13 @@ class _ChatScreenState extends State<ChatScreen> {
                 controller: _inputController,
                 enabled: !_loading,
                 textInputAction: TextInputAction.send,
-                decoration: const InputDecoration(
-                  hintText: 'Ask something...',
-                  hintStyle: TextStyle(
+                decoration: InputDecoration(
+                  hintText: context.watch<LocaleService>().t('chat.input_hint'),
+                  hintStyle: const TextStyle(
                     color: Color(0xFFA1A1AA),
                   ),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
+                  contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 10,
                   ),

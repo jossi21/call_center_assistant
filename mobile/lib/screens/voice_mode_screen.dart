@@ -4,6 +4,9 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:audioplayers/audioplayers.dart';
 import '../models/chat_message.dart';
 import '../services/chat_service.dart';
+import 'package:provider/provider.dart';
+import '../services/locale_service.dart';
+import '../widgets/language_picker_sheet.dart';
 
 enum VoiceState { listening, thinking, speaking, idle, error }
 
@@ -140,7 +143,7 @@ class _VoiceModeScreenState extends State<VoiceModeScreen>
       if (!mounted || !_active) return;
       setState(() {
         _state = VoiceState.error;
-        _statusMessage = 'Could not start the microphone — tap to retry';
+        _statusMessage = context.read<LocaleService>().t('voice.mic_error');
       });
     }
   }
@@ -154,7 +157,8 @@ class _VoiceModeScreenState extends State<VoiceModeScreen>
       if (mounted)
         setState(() {
           _state = VoiceState.idle;
-          _statusMessage = "Didn't catch that - listening again...";
+          _statusMessage =
+              context.read<LocaleService>().t('voice.no_match_retry');
         });
       await Future.delayed(const Duration(milliseconds: 900));
       if (_active) await _startListening();
@@ -264,17 +268,20 @@ class _VoiceModeScreenState extends State<VoiceModeScreen>
   }
 
   String get _label {
+    final loc = context.watch<LocaleService>();
     switch (_state) {
       case VoiceState.listening:
-        return _partialText.isNotEmpty ? _partialText : 'Listening…';
+        return _partialText.isNotEmpty
+            ? _partialText
+            : loc.t('voice.listening');
       case VoiceState.thinking:
-        return 'Thinking…';
+        return loc.t('voice.thinking');
       case VoiceState.speaking:
-        return 'Speaking… (tap to interrupt)';
+        return loc.t('voice.speaking_interrupt');
       case VoiceState.error:
-        return _statusMessage ?? 'Something went wrong — tap to retry';
+        return _statusMessage ?? loc.t('voice.generic_error');
       case VoiceState.idle:
-        return _statusMessage ?? 'Starting…';
+        return _statusMessage ?? loc.t('voice.starting');
     }
   }
 
