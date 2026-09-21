@@ -3,7 +3,7 @@ from app.core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
 
 # Routes
-from app.routes import health, chat, auth 
+from app.routes import health, chat, auth, ui_strings 
 from app.admin import router as admin_router
 from app.staffs import router as staff_router
 from app.channels.router import router as channels_webhook_router  
@@ -28,6 +28,7 @@ app.include_router(auth.router)
 app.include_router(admin_router.router)
 app.include_router(staff_router.router)
 app.include_router(channels_webhook_router)  
+app.include_router(ui_strings.router)
 
 # home page endpoint
 @app.get("/")

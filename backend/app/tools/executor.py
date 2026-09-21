@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.models.db import User, UserMemory
 
+ALLOWED_USER_FIELDS = {"preferred_language", "name", "location"}
 
 def execute_tool(action_type: str, action_config: dict, tool_args: dict, user_id: str, db: Session) -> dict:
     if action_type == "update_user_field":
@@ -28,6 +29,10 @@ def _open_url(action_config: dict, tool_args: dict) -> dict:
 
 def _update_user_field(action_config: dict, tool_args: dict, user_id: str, db: Session) -> dict:
     field = action_config["field"]
+
+    if field not in ALLOWED_USER_FIELDS:
+        return {"success": False, "error": f"Field '{field}' is not writable via this tool"}
+
     value = tool_args.get(field) or tool_args.get("value")
 
     user = db.query(User).filter(User.id == user_id).first()
@@ -37,8 +42,6 @@ def _update_user_field(action_config: dict, tool_args: dict, user_id: str, db: S
     setattr(user, field, value)
     db.commit()
     return {"success": True, "field": field, "value": value}
-
-
 def _write_user_memory(action_config: dict, tool_args: dict, user_id: str, db: Session) -> dict:
     key = action_config["memory_key"]
     value = tool_args.get("value") or str(tool_args)

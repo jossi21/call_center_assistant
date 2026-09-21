@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
-from langchain_groq import ChatGroq
+from sqlalchemy import func
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from app.core.config import settings
 
@@ -429,13 +429,22 @@ def _handle_tool_call(response, tools: list[Tool], user_id: str, db: Session, ag
         return text, agent_display_name
 
     if tool.name == "change_language":
-        requested_code = tool_args.get("value", "").lower()
-        valid_language = db.query(Language).filter(Language.code == requested_code, Language.is_active == True).first()
+        requested = tool_args.get("value", "").strip().lower()
+        valid_language = (
+            db.query(Language)
+            .filter(Language.is_active == True)
+            .filter(
+                (Language.code == requested) | (func.lower(Language.name) == requested)
+            )
+            .first()
+        )
         if not valid_language:
             supported = ", ".join(l.name for l in db.query(Language).filter(Language.is_active == True).all())
             text = _generate_in_language(f"That language isn't supported yet. Supported languages: {supported}.", language_instruction)
             return text, agent_display_name
 
+        tool_args["value"] = valid_language.code
+        
     if tool.action_type == "present_list":
         title = tool_args.get("title", "Options")
         items = tool_args.get("items", [])

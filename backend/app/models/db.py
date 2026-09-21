@@ -246,3 +246,26 @@ class Notification(Base):
     excerpt = Column(Text, nullable=True)
     is_read = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
+
+
+class UiString(Base):
+    __tablename__ = "ui_strings"
+    __table_args__ = (
+        UniqueConstraint("key", "language_code", name="uq_ui_string_key_language"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    key = Column(String(150), nullable=False, index=True)
+    language_code = Column(String(10), ForeignKey("languages.code"), nullable=False, index=True)
+    value = Column(Text, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class FeatureFlag(Base):
+    __tablename__ = "feature_flags"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    key = Column(String(100), unique=True, nullable=False)
+    enabled = Column(Boolean, default=True, nullable=False)
+    description = Column(Text, nullable=True)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

@@ -9,6 +9,7 @@ from app.admin.users.router import router as users_router
 from app.admin.analytics.router import router as analytics_router
 from app.admin.channels.router import router as channels_router
 from app.admin.templates.router import router as templates_router
+from app.admin.config.router import router as configuration_router
 
 
 router = APIRouter(prefix="/admin")
@@ -22,3 +23,4 @@ router.include_router(users_router)
 router.include_router(analytics_router)
 router.include_router(channels_router)
 router.include_router(templates_router)
+router.include_router(configuration_router)

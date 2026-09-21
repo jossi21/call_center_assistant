@@ -2,10 +2,12 @@ from app.models.db import Language
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import Optional
 
 from app.core.database import get_db
 from app.core.current_user import require_admin
-from app.models.db import Agent
+from app.models.db import Agent,UiString
+
 
 router = APIRouter(prefix="/languages", tags=["Languages"])
 
@@ -60,3 +62,48 @@ def delete_language(language_id: str, db: Session = Depends(get_db), _: str = De
     language.is_active = False  # soft delete, same pattern as agents
     db.commit()
     return {"message": "Language deactivated"}
+
+
+
+class UiStringUpsert(BaseModel):
+    key: str
+    language_code: str
+    value: str
+
+
+@router.get("/ui-strings", response_model=list[UiStringUpsert])
+def admin_list_ui_strings(language_code: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(UiString)
+    if language_code:
+        query = query.filter(UiString.language_code == language_code)
+    rows = query.order_by(UiString.key).all()
+    return [UiStringUpsert(key=r.key, language_code=r.language_code, value=r.value) for r in rows]
+
+
+@router.put("/ui-strings", response_model=UiStringUpsert)
+def admin_upsert_ui_string(payload: UiStringUpsert, db: Session = Depends(get_db)):
+    row = (
+        db.query(UiString)
+        .filter(UiString.key == payload.key, UiString.language_code == payload.language_code)
+        .first()
+    )
+    if row:
+        row.value = payload.value
+    else:
+        row = UiString(key=payload.key, language_code=payload.language_code, value=payload.value)
+        db.add(row)
+    db.commit()
+    return payload
+
+
+@router.delete("/ui-strings")
+def admin_delete_ui_string(key: str, language_code: str, db: Session = Depends(get_db)):
+    row = (
+        db.query(UiString)
+        .filter(UiString.key == key, UiString.language_code == language_code)
+        .first()
+    )
+    if row:
+        db.delete(row)
+        db.commit()
+    return {"ok": True}
