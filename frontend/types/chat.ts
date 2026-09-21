@@ -2,9 +2,10 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   agent?: string;
-  is_staff?: boolean;
   id?: string;
   interrupted?: boolean;
+  is_staff?: boolean;
+  structured?: { type: string; url?: string; [key: string]: unknown } | null;
 }
 
 export interface ChatRequest {

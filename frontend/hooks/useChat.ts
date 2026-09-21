@@ -18,6 +18,12 @@ interface SessionState {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
+interface StructuredPayload {
+  type: string;
+  url?: string;
+  [key: string]: unknown;
+}
+
 interface SSEHandlers {
   onStart?: (data: {
     stream_id: string;
@@ -30,6 +36,7 @@ interface SSEHandlers {
     agent: string;
     interrupted?: boolean;
     message_id?: string;
+    structured?: StructuredPayload | null;
   }) => void;
 }
 
@@ -45,6 +52,10 @@ async function runSSEStream(url: string, body: unknown, handlers: SSEHandlers) {
     body: JSON.stringify(body),
   });
 
+  if (!res.ok) {
+    throw new Error(`Stream request failed: ${res.status}`);
+  }
+
   if (!res.body) throw new Error("No response body");
 
   const reader = res.body.getReader();
@@ -56,6 +67,7 @@ async function runSSEStream(url: string, body: unknown, handlers: SSEHandlers) {
     if (done) break;
 
     buffer += decoder.decode(value, { stream: true });
+
     const parts = buffer.split("\n\n");
     buffer = parts.pop() || "";
 
@@ -63,6 +75,7 @@ async function runSSEStream(url: string, body: unknown, handlers: SSEHandlers) {
       const lines = part.split("\n");
       const eventLine = lines.find((l) => l.startsWith("event:"));
       const dataLine = lines.find((l) => l.startsWith("data:"));
+
       if (!eventLine || !dataLine) continue;
 
       const eventType = eventLine.replace("event:", "").trim();
@@ -76,11 +89,22 @@ async function runSSEStream(url: string, body: unknown, handlers: SSEHandlers) {
   }
 }
 
+function handleStructuredPayload(
+  structured: StructuredPayload | null | undefined,
+) {
+  if (!structured) return;
+
+  if (structured.type === "open_url" && structured.url) {
+    window.open(structured.url, "_blank", "noopener,noreferrer");
+  }
+}
+
 export function useChat() {
   const [session, setSession] = useState<SessionState>({
     stage: "awaiting_phone",
     messages: [DEFAULT_MESSAGE],
   });
+
   const [loading, setLoading] = useState(false);
   const [pendingPhone, setPendingPhone] = useState<string | null>(null);
   const [streamStage, setStreamStage] = useState<string | null>(null);
@@ -101,6 +125,8 @@ export function useChat() {
 
   const [initializing, setInitializing] = useState(true);
 
+  // Load existing chat history.
+  // Historical structured actions are stored but never executed on load.
   useEffect(() => {
     queueMicrotask(async () => {
       const token = localStorage.getItem("access_token");
@@ -113,6 +139,7 @@ export function useChat() {
 
           if (res.ok) {
             const data = await res.json();
+
             const loaded: ChatMessage[] = data.messages.map(
               (m: {
                 id: string;
@@ -120,11 +147,13 @@ export function useChat() {
                 content: string;
                 agent: string | null;
                 created_at: string;
+                structured?: StructuredPayload | null;
               }) => ({
                 role: m.role as "user" | "assistant",
                 content: m.content,
                 agent: m.agent || undefined,
                 id: m.id,
+                structured: m.structured,
               }),
             );
 
@@ -132,6 +161,7 @@ export function useChat() {
               pollAfterRef.current =
                 data.messages[data.messages.length - 1].created_at;
             }
+
             data.messages.forEach((m: { id: string }) =>
               seenIdsRef.current.add(m.id),
             );
@@ -153,7 +183,7 @@ export function useChat() {
             localStorage.removeItem("phone_number");
           }
         } catch {
-          // network hiccup — fall through to the unauthenticated state below
+          // Network hiccup — fall through to the unauthenticated state.
         }
       }
 
@@ -161,27 +191,46 @@ export function useChat() {
     });
   }, []);
 
-  // Poll for new assistant-role messages (AI or human staff) while authenticated.
+  // Poll for new assistant-role messages (AI or human staff).
   useEffect(() => {
     if (stage !== "authenticated") return;
 
     const interval = setInterval(async () => {
       try {
         const token = localStorage.getItem("access_token");
+
         const res = await fetch(
-          `${API_URL}/chat/messages?after=${encodeURIComponent(pollAfterRef.current)}`,
-          { headers: { Authorization: `Bearer ${token}` } },
+          `${API_URL}/chat/messages?after=${encodeURIComponent(
+            pollAfterRef.current,
+          )}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
         );
+
         if (!res.ok) return;
+
         const data = await res.json();
+
         if (!data.messages?.length) return;
 
         const fresh = data.messages.filter(
           (m: { id: string }) => !seenIdsRef.current.has(m.id),
         );
+
         if (fresh.length === 0) return;
 
-        fresh.forEach((m: { id: string }) => seenIdsRef.current.add(m.id));
+        // Mark fresh messages as seen.
+        fresh.forEach(
+          (m: { id: string; structured?: StructuredPayload | null }) =>
+            seenIdsRef.current.add(m.id),
+        );
+
+        // Execute structured actions only for newly arrived messages.
+        fresh.forEach((m: { structured?: StructuredPayload | null }) =>
+          handleStructuredPayload(m.structured),
+        );
+
         pollAfterRef.current =
           data.messages[data.messages.length - 1].created_at;
 
@@ -195,18 +244,20 @@ export function useChat() {
                 content: string;
                 agent_name?: string | null;
                 is_staff?: boolean;
+                structured?: StructuredPayload | null;
               }) => ({
                 role: "assistant" as const,
                 content: m.content,
                 id: m.id,
                 agent: m.agent_name ?? undefined,
                 is_staff: m.is_staff,
+                structured: m.structured,
               }),
             ),
           ],
         }));
       } catch {
-        // best-effort — a missed poll just gets caught by the next one
+        // Best-effort — a missed poll gets caught by the next one.
       }
     }, 4000);
 
@@ -218,6 +269,7 @@ export function useChat() {
     if (!streamId) return;
 
     const token = localStorage.getItem("access_token");
+
     try {
       await fetch(`${API_URL}/chat/stream/stop`, {
         method: "POST",
@@ -228,21 +280,25 @@ export function useChat() {
         body: JSON.stringify({ stream_id: streamId }),
       });
     } catch {
-      // Best-effort — if this fails, the stream will still finish naturally.
+      // Best-effort — stream will still finish naturally.
     }
+
     setCanStop(false);
   }
 
   function attachUserMessageId(userMessageId: string | null) {
     if (userMessageId === null) return;
+
     setSession((prev) => {
       const msgs = [...prev.messages];
+
       for (let i = msgs.length - 1; i >= 0; i--) {
         if (msgs[i].role === "user" && msgs[i].id === undefined) {
           msgs[i] = { ...msgs[i], id: userMessageId };
           break;
         }
       }
+
       return { ...prev, messages: msgs };
     });
   }
@@ -250,6 +306,7 @@ export function useChat() {
   async function speakText(text: string) {
     try {
       const token = localStorage.getItem("access_token");
+
       const res = await fetch(`${API_URL}/voice/speak`, {
         method: "POST",
         headers: {
@@ -258,14 +315,17 @@ export function useChat() {
         },
         body: JSON.stringify({ text }),
       });
+
       if (!res.ok) return;
+
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
+
       audio.play();
       audio.onended = () => URL.revokeObjectURL(url);
     } catch {
-      // best-effort — voice playback failing shouldn't block the text response
+      // Voice playback failure shouldn't block the text response.
     }
   }
 
@@ -288,8 +348,11 @@ export function useChat() {
           setCanStop(true);
           attachUserMessageId(data.user_message_id);
         },
+
         onStage: setStreamStage,
+
         onChunk: (text) => setStreamingText((prev) => prev + text),
+
         onFinal: (data) => {
           setStreamStage(null);
           setStreamingText("");
@@ -301,7 +364,13 @@ export function useChat() {
             return;
           }
 
-          if (data.message_id) seenIdsRef.current.add(String(data.message_id));
+          if (data.message_id) {
+            seenIdsRef.current.add(String(data.message_id));
+          }
+
+          // Execute the structured action once on live arrival.
+          handleStructuredPayload(data.structured);
+
           setSession((prev) => ({
             ...prev,
             messages: [
@@ -313,6 +382,7 @@ export function useChat() {
                 is_staff: false,
                 id: data.message_id,
                 interrupted: data.interrupted,
+                structured: data.structured,
               },
             ],
           }));
@@ -320,6 +390,7 @@ export function useChat() {
           if (lastInputWasVoiceRef.current) {
             speakText(data.answer);
           }
+
           lastInputWasVoiceRef.current = false;
         },
       },
@@ -345,14 +416,24 @@ export function useChat() {
           streamIdRef.current = data.stream_id;
           setCanStop(true);
         },
+
         onStage: setStreamStage,
+
         onChunk: (text) => setStreamingText((prev) => prev + text),
+
         onFinal: (data) => {
           setStreamStage(null);
           setStreamingText("");
           setCanStop(false);
           streamIdRef.current = null;
-          if (data.message_id) seenIdsRef.current.add(String(data.message_id));
+
+          if (data.message_id) {
+            seenIdsRef.current.add(String(data.message_id));
+          }
+
+          // Handle structured actions returned by regeneration.
+          handleStructuredPayload(data.structured);
+
           setSession((prev) => ({
             ...prev,
             messages: [
@@ -364,6 +445,7 @@ export function useChat() {
                 is_staff: false,
                 id: data.message_id,
                 interrupted: data.interrupted,
+                structured: data.structured,
               },
             ],
           }));
@@ -384,6 +466,7 @@ export function useChat() {
           streamIdRef.current = data.stream_id;
           setCanStop(true);
         },
+
         onChunk: (text) => {
           setSession((prev) => ({
             ...prev,
@@ -392,17 +475,27 @@ export function useChat() {
             ),
           }));
         },
+
         onFinal: (data) => {
           setCanStop(false);
           streamIdRef.current = null;
+
           setSession((prev) => ({
             ...prev,
             messages: prev.messages.map((m) =>
               m.id === messageId
-                ? { ...m, content: data.answer, interrupted: data.interrupted }
+                ? {
+                    ...m,
+                    content: data.answer,
+                    interrupted: data.interrupted,
+                    structured: data.structured ?? m.structured,
+                  }
                 : m,
             ),
           }));
+
+          // Continuation updates an existing message; do not execute
+          // structured actions here to avoid repeated side effects.
         },
       },
     );
@@ -414,19 +507,28 @@ export function useChat() {
 
   async function editMessage(messageId: string, newContent: string) {
     const token = localStorage.getItem("access_token");
+
     await fetch(`${API_URL}/chat/edit`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ message_id: messageId, new_content: newContent }),
+      body: JSON.stringify({
+        message_id: messageId,
+        new_content: newContent,
+      }),
     });
 
     setSession((prev) => {
       const idx = prev.messages.findIndex((m) => m.id === messageId);
+
       if (idx === -1) return prev;
-      return { ...prev, messages: prev.messages.slice(0, idx) };
+
+      return {
+        ...prev,
+        messages: prev.messages.slice(0, idx),
+      };
     });
 
     await chat(newContent);
@@ -434,8 +536,10 @@ export function useChat() {
 
   async function verifyAndProceed(phone: string, code: string) {
     const res = await verifyOtp(phone, code);
+
     localStorage.setItem("access_token", res.access_token);
     localStorage.setItem("phone_number", phone);
+
     setSession((prev) => ({
       stage: "authenticated",
       messages: [
@@ -457,11 +561,13 @@ export function useChat() {
       ...prev,
       messages: [...prev.messages, { role: "user", content: text }],
     }));
+
     setLoading(true);
 
     try {
       if (stage === "awaiting_phone") {
         let otpResponse;
+
         try {
           otpResponse = await requestOtp(text);
         } catch {
@@ -476,6 +582,7 @@ export function useChat() {
               },
             ],
           }));
+
           return;
         }
 
@@ -495,6 +602,7 @@ export function useChat() {
         if (otpResponse.dev_code) {
           setPrefillValue(otpResponse.dev_code);
         }
+
         return;
       }
 
@@ -509,6 +617,7 @@ export function useChat() {
       setStreamingText("");
       setCanStop(false);
       streamIdRef.current = null;
+
       setSession((prev) => ({
         ...prev,
         messages: [
@@ -530,15 +639,18 @@ export function useChat() {
   function resetChat() {
     localStorage.removeItem("access_token");
     localStorage.removeItem("phone_number");
+
     setPendingPhone(null);
     setStreamStage(null);
     setStreamingText("");
     setCanStop(false);
     setPrefillValue(null);
+
     streamIdRef.current = null;
     seenIdsRef.current = new Set();
     lastInputWasVoiceRef.current = false;
     pollAfterRef.current = new Date().toISOString();
+
     setSession({
       stage: "awaiting_phone",
       messages: [DEFAULT_MESSAGE],

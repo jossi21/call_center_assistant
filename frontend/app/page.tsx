@@ -1,9 +1,11 @@
+import { LandingPage } from "@/components/site/LandingPage";
 import ChatBot from "@/components/ChatBot";
 
-export default function Home() {
+export default function Page() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-950">
+    <>
+      <LandingPage />
       <ChatBot />
-    </main>
+    </>
   );
 }
