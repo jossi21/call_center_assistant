@@ -40,8 +40,10 @@ class VerifyOtpResponse {
 }
 
 class AuthService {
-  static const String apiUrl =
-      'http://10.0.2.2:8000'; // swap for your deployed URL
+  static const String apiUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'http://172.21.79.210:8000',
+  );
   final _storage = const FlutterSecureStorage();
 
   Future<RequestOtpResponse> requestOtp(String phoneNumber) async {

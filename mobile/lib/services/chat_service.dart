@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import '../models/chat_message.dart';
 import 'auth_service.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -11,7 +13,10 @@ typedef OnFinal = void Function(Map<String, dynamic> data);
 typedef OnStart = void Function(Map<String, dynamic> data);
 
 class ChatService {
-  static const String apiUrl = 'http://10.0.2.2:8000';
+  static const String apiUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'http://172.21.79.210:8000',
+  );
   final AuthService authService;
   final Set<String> _seenIds = {};
   String _pollAfter = DateTime.now().toUtc().toIso8601String();
@@ -168,7 +173,18 @@ class ChatService {
     );
   }
 
+  /// Fetches TTS audio and plays it back.
+  ///
+  /// IMPORTANT: this plays via a temp file (DeviceFileSource), not
+  /// BytesSource. On Android, BytesSource hands MediaPlayer a raw byte
+  /// blob with no format hint, and MediaPlayer has to sniff the
+  /// container/codec itself — this is a known source of
+  /// MEDIA_ERROR_UNKNOWN / MEDIA_ERROR_SYSTEM on real devices even when
+  /// the exact same bytes play fine in a browser. Writing to disk and
+  /// playing via setDataSource(path) uses Android's normal, reliable path.
+  /// See: https://github.com/bluefireteam/audioplayers/blob/main/troubleshooting.md
   Future<void> speakText(String text, AudioPlayer audioPlayer) async {
+    File? tempFile;
     try {
       final token = await authService.getToken();
       final res = await http.post(
@@ -179,7 +195,46 @@ class ChatService {
         },
         body: jsonEncode({'text': text}),
       );
-      if (res.statusCode != 200) return;
+      if (res.statusCode != 200) {
+        // ignore: avoid_print
+        print('speakText: /voice/speak returned ${res.statusCode}');
+        return;
+      }
+
+      // Pick a real extension from the response's Content-Type so the
+      // native player gets an actual format hint instead of guessing.
+      final contentType = res.headers['content-type'] ?? '';
+      final ext = contentType.contains('wav')
+          ? 'wav'
+          : contentType.contains('ogg')
+              ? 'ogg'
+              : contentType.contains('flac')
+                  ? 'flac'
+                  : 'mp3'; // sensible default for most TTS APIs
+      // ignore: avoid_print
+      print('speakText: content-type="$contentType" -> .$ext, '
+          '${res.bodyBytes.length} bytes');
+
+      final dir = await getTemporaryDirectory();
+      tempFile =
+          File('${dir.path}/tts_${DateTime.now().millisecondsSinceEpoch}.$ext');
+      await tempFile.writeAsBytes(res.bodyBytes, flush: true);
+
+      await audioPlayer.setAudioContext(
+        AudioContext(
+          android: AudioContextAndroid(
+            isSpeakerphoneOn: true,
+            stayAwake: true,
+            contentType: AndroidContentType.speech,
+            usageType: AndroidUsageType.media,
+            audioFocus: AndroidAudioFocus.gain,
+          ),
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+          ),
+        ),
+      );
+      await audioPlayer.setVolume(1.0);
 
       final completer = Completer<void>();
       late final StreamSubscription sub;
@@ -188,13 +243,20 @@ class ChatService {
         if (!completer.isCompleted) completer.complete();
       });
 
-      await audioPlayer.play(BytesSource(res.bodyBytes));
+      await audioPlayer.play(DeviceFileSource(tempFile.path));
       await completer.future.timeout(
         const Duration(seconds: 60),
         onTimeout: () => sub.cancel(),
       );
-    } catch (_) {
-      // best-effort — voice playback failing shouldn't block the text response
+    } catch (e) {
+      // best-effort — voice playback failing shouldn't block the text
+      // response, but log it so a real regression is visible in logcat.
+      // ignore: avoid_print
+      print('speakText failed: $e');
+    } finally {
+      if (tempFile != null) {
+        tempFile.delete().catchError((_) => tempFile!);
+      }
     }
   }
 
