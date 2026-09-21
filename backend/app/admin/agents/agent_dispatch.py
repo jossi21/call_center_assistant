@@ -141,7 +141,7 @@ def handle_message(
     # Paused: swallow the message entirely. No AI reply, no canned filler —
     # the customer's message is saved (by the caller) and delivered to staff
     # over the websocket; staff answers directly, with zero AI intervention.
-        return text, "System"
+        return None, "System"
 
     # Not paused — AI has full control. But if there's an assigned case (paused
     # or not) and the customer is asking for a status update on it, answer that

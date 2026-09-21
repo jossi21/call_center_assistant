@@ -154,6 +154,9 @@ def get_new_messages(
                 "id": str(m.id),
                 "role": m.role,
                 "content": m.content,
+                "agent_name": m.agent_name,
+                "is_staff": m.is_staff,
+                "structured": m.structured_payload,
                 "created_at": m.created_at.isoformat(),
             }
             for m in messages
@@ -176,17 +179,69 @@ def get_chat_history(db: Session = Depends(get_db), user_id: str = Depends(get_c
                 "role": m.role,
                 "content": m.content,
                 "agent": m.agent_name,
+                "is_staff": m.is_staff,
+                "structured": m.structured_payload,
                 "created_at": m.created_at.isoformat(),
             }
             for m in messages
         ]
     }
-
 GROQ_TTS_URL = "https://api.groq.com/openai/v1/audio/speech"
 
 class SpeakRequest(BaseModel):
     text: str
     voice: str = "troy"  # Orpheus voices: troy, hannah, austin, and others — pick what fits your brand
+
+
+def fix_wav_header(data: bytes) -> bytes:
+    """
+    Rewrites the RIFF chunk size and 'data' subchunk size fields to match
+    the actual byte length of `data`.
+
+    Streaming TTS APIs commonly emit a WAV header with a placeholder/incorrect
+    size (0, or the max uint32) in these two fields, since they don't know the
+    final length until generation finishes. Browsers, VLC, ffmpeg, etc. are
+    lenient and just read to EOF regardless -- Android's native MediaPlayer /
+    Stagefright extractor is not, and rejects these files outright with
+    MEDIA_ERROR_UNKNOWN even though the audio data itself is perfectly valid.
+
+    This does a byte-level patch rather than a full re-encode via the `wave`
+    module, because `wave` also trusts the (possibly bogus) size field when
+    reading frames back out -- patching the header directly is more robust
+    to whatever the provider actually sent.
+    """
+    if len(data) < 44 or data[0:4] != b"RIFF" or data[8:12] != b"WAVE":
+        # Not a WAV file we recognize the shape of -- return untouched
+        # rather than risk corrupting something we don't understand.
+        return data
+
+    data = bytearray(data)
+
+    # RIFF chunk size = total file size - 8 (the 'RIFF' + size field itself)
+    riff_size = len(data) - 8
+    data[4:8] = riff_size.to_bytes(4, "little")
+
+    # Find the 'data' subchunk -- usually at offset 36 for a canonical
+    # 44-byte header, but scan for it in case extra chunks (e.g. 'fact',
+    # 'LIST') were inserted before it.
+    pos = 12
+    while pos + 8 <= len(data):
+        chunk_id = bytes(data[pos:pos + 4])
+        if chunk_id == b"data":
+            data_size = len(data) - (pos + 8)
+            data[pos + 4:pos + 8] = data_size.to_bytes(4, "little")
+            break
+        # Otherwise skip this chunk using ITS declared size to find the next
+        # one. If a chunk's size is itself bogus we just stop scanning and
+        # return what we've fixed so far rather than loop incorrectly.
+        try:
+            chunk_size = int.from_bytes(data[pos + 4:pos + 8], "little")
+        except Exception:
+            break
+        pos += 8 + chunk_size + (chunk_size % 2)  # chunks are word-aligned
+
+    return bytes(data)
+
 
 @router.post("/voice/speak")
 async def speak(request: SpeakRequest, user_id: str = Depends(get_current_user_id)):
@@ -196,7 +251,7 @@ async def speak(request: SpeakRequest, user_id: str = Depends(get_current_user_i
             headers={"Authorization": f"Bearer {settings.groq_api_key}"},
             json={
                 "model": "canopylabs/orpheus-v1-english",
-                "input": request.text[:200],  # Orpheus caps input around 200 chars per request
+                "input": request.text[:200],
                 "voice": request.voice,
                 "response_format": "wav",
             },
@@ -204,4 +259,5 @@ async def speak(request: SpeakRequest, user_id: str = Depends(get_current_user_i
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail=f"TTS provider error: {resp.text}")
 
-    return StreamingResponse(iter([resp.content]), media_type="audio/wav")
+    audio_bytes = fix_wav_header(resp.content)
+    return StreamingResponse(iter([audio_bytes]), media_type="audio/wav")
